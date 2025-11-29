@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>哔哩哔哩课程进度跟踪器</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #333;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px; 
+        }
+
+        header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px; /* Reduced margin to bring new text closer */
+        }
+
+        .motivational-phrase { /* Style for the new motivational phrase */
+            color: #e67e22; /* An encouraging orange color */
+            font-size: 18px;
+            font-weight: 500;
+            margin-top: 0;
+            margin-bottom: 20px; /* Space before the course cards or next element */
+        }
+
+
+        .data-actions-container { 
+            margin-top: 15px;
+            margin-bottom: 15px; 
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .action-button {
+            background-color: #5dade2; 
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color: 0.3s ease;
+        }
+        .action-button:hover {
+            background-color: #3498db;
+        }
+        .action-button.edit-mode-active-btn {
+            background-color: #e74c3c;
+        }
+        .action-button.edit-mode-active-btn:hover {
+            background-color: #c0392b;
+        }
+
+
+        #course-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 25px;
+            padding: 20px 5px; 
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .course-item-container {
+            position: relative; /* Needed for positioning edit buttons */
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 230px;
+            min-height: 220px; 
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .course-item-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Edit mode buttons styling */
+        .delete-course-btn, .edit-icon-text-btn, .add-sub-course-btn {
+            display: none; /* Hidden by default */
+            position: absolute;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            z-index: 10;
+            width: 28px;
+            height: 28px;
+            font-size: 16px;
+            line-height: 28px;
+        }
+
+        .delete-course-btn {
+            top: -8px;
+            right: -8px;
+            background-color: rgba(231, 76, 60, 0.9);
+        }
+        .delete-course-btn:hover {
+            background-color: #c0392b;
+            transform: scale(1.1);
+        }
+
+        .edit-icon-text-btn {
+            top: 30px;
+            right: -8px;
+            font-size: 14px;
+            background-color: rgba(52, 152, 219, 0.9);
+        }
+        .edit-icon-text-btn:hover {
+            background-color: #2980b9;
+            transform: scale(1.1);
+        }
+        
+        .add-sub-course-btn {
+            top: 68px;
+            right: -8px;
+            background-color: rgba(46, 204, 113, 0.9);
+            font-size: 20px;
+        }
+        .add-sub-course-btn:hover {
+            background-color: #27ae60;
+            transform: scale(1.1);
+        }
+
+
+        /* Show buttons when in edit mode */
+        body.edit-mode-active .delete-course-btn,
+        body.edit-mode-active .edit-icon-text-btn,
+        body.edit-mode-active .add-sub-course-btn {
+            display: block;
+        }
+
+
+        .course-icon { 
+            width: 90px; 
+            height: 90px; 
+            background-color: #3498db; 
+            color: white;
+            font-size: 18px; 
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            transition: background-color 0.3s ease;
+            flex-shrink: 0; 
+            text-align: center;
+            padding: 5px;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+
+        .course-icon:hover {
+            background-color: #2980b9; 
+        }
+
+        .course-name { 
+            font-size: 17px; 
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            word-break: break-word; 
+        }
+        
+        .course-item-container .course-name.multi-link-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .update-link-button { 
+            background-color: #2ecc71; 
+            color: white;
+            border: none;
+            padding: 10px 18px; 
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px; 
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            width: 100%; 
+            box-sizing: border-box;
+            margin-top: auto; 
+        }
+
+        .update-link-button:hover {
+            background-color: #27ae60; 
+        }
+
+        .sub-courses-icons-container { 
+            display: flex;
+            justify-content: center; /* Centered items */
+            align-items: flex-start; 
+            gap: 10px; 
+            margin-bottom: 15px; 
+            width: 100%;
+            /* flex-wrap: wrap; -- Removed this to prevent wrapping */
+        }
+
+        .sub-course-item { 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px; 
+            position: relative; /* For edit button positioning */
+        }
+        
+        .sub-course-icon { 
+            width: 60px; 
+            height: 60px;
+            background-color: #3498db; 
+            color: white;
+            font-size: 12px; 
+            font-weight: bold;
+            border: none;
+            border-radius: 8px; 
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s ease;
+            flex-shrink: 0;
+            line-height: 1.2; 
+            padding: 2px; 
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .sub-course-icon:hover {
+            background-color: #2980b9;
+        }
+        .sub-course-item-name { 
+            font-size: 12px; 
+            color: #555;
+        }
+
+        /* Adjusting edit buttons for sub-courses */
+        .sub-course-item .delete-course-btn {
+            top: -5px;
+            right: -5px;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            line-height: 24px;
+        }
+        .sub-course-item .edit-icon-text-btn {
+            top: 20px;
+            right: -5px;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            line-height: 24px;
+        }
+        .sub-course-item .add-sub-course-btn {
+            display: none; /* Hide add button on sub-items */
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5); 
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: auto;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 500px;
+            text-align: left;
+            position: relative;
+            animation: fadeInModal 0.3s ease-out;
+        }
+
+        @keyframes fadeInModal {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .close-button {
+            color: #aaa;
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #333;
+            text-decoration: none;
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-size: 22px;
+        }
+        
+        .modal-input-section {
+            margin-bottom: 15px;
+        }
+        .modal-input-section label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+        .modal-input-section input[type="url"],
+        .modal-input-section input[type="text"] {
+            width: 100%; 
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        #modal-default-input-container p { 
+             margin-bottom: 10px;
+             font-size: 16px;
+             line-height: 1.6;
+        }
+         #modal-multi-inputs-container p { 
+             margin-bottom: 15px;
+             font-size: 16px;
+             line-height: 1.6;
+        }
+
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        #modal-save-button, .modal-confirm-btn, .modal-cancel-btn {
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        #modal-save-button, .modal-confirm-btn {
+             background-color: #3498db;
+        }
+        .modal-cancel-btn {
+            background-color: #95a5a6;
+        }
+
+        #modal-save-button:hover, .modal-confirm-btn:hover {
+            background-color: #2980b9;
+        }
+        .modal-cancel-btn:hover {
+            background-color: #7f8c8d;
+        }
+
+        /* Celebration Toast Styles */
+        #celebration-toast {
+            position: fixed;
+            bottom: 30px; 
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2ecc71; 
+            color: white;
+            padding: 18px 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 2000; 
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease, visibility 0.5s ease, bottom 0.5s ease; 
+            text-align: center;
+            font-size: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #celebration-toast.show {
+            opacity: 1;
+            visibility: visible;
+            bottom: 50px; 
+        }
+
+        .toast-flowers {
+            font-size: 24px; 
+            animation: bloom 0.8s ease-out forwards;
+        }
+        
+        @keyframes bloom { 
+            0% { transform: scale(0.5); opacity: 0.5; }
+            70% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Footer Styles */
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px; 
+            border-top: 1px solid #e0e0e0; 
+            width: 100%;
+            max-width: 800px; 
+            margin-left: auto;
+            margin-right: auto;
+            box-sizing: border-box;
+        }
+        footer p {
+            color: #555;
+            font-size: 16px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+            header h1 {
+                font-size: 24px;
+            }
+            .motivational-phrase {
+                font-size: 16px;
+                margin-bottom: 15px;
+            }
+            footer .data-actions-container { 
+                flex-direction: column; 
+                align-items: center;
+            }
+            footer .action-button { 
+                width: 80%;
+                max-width: 250px; 
+            }
+            .course-item-container {
+                width: 190px; 
+                padding: 15px;
+                min-height: 200px;
+            }
+            .course-icon {
+                width: 70px; 
+                height: 70px;
+                font-size: 16px; 
+            }
+            .course-name {
+                font-size: 16px; 
+                margin-bottom: 10px; 
+            }
+             .course-item-container .course-name.multi-link-title {
+                font-size: 17px;
+            }
+            .update-link-button {
+                font-size: 12px; 
+                padding: 8px 12px; 
+            }
+            .sub-course-icon { 
+                width: 50px;
+                height: 50px;
+                font-size: 10px;
+            }
+            .sub-course-item-name {
+                font-size: 11px;
+            }
+             .sub-courses-icons-container {
+                gap: 5px; 
+            }
+
+
+            .modal-content {
+                width: 90%;
+                padding: 20px;
+            }
+            .modal-input-section input[type="url"],
+            .modal-input-section input[type="text"] {
+                font-size: 14px;
+            }
+            #modal-save-button, .modal-confirm-btn, .modal-cancel-btn { 
+                font-size: 14px;
+                padding: 10px 18px;
+            }
+            #celebration-toast {
+                padding: 15px 25px;
+                font-size: 14px;
+                width: calc(90% - 50px); 
+            }
+            .toast-flowers {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>哔哩哔哩课程进度跟踪器</h1>
+            <p class="motivational-phrase">加油, 坚持, 努力！</p> 
+        </header>
+
+        <div id="course-container">
+            <!-- Courses will be rendered here by JavaScript -->
+        </div>
+
+        <!-- Main Modal for updating links and editing text -->
+        <div id="main-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2 id="modal-title">更新课程链接</h2>
+                
+                <!-- Container for default link input -->
+                <div id="modal-default-input-container" class="modal-input-section">
+                    <p>请粘贴当前课时的哔哩哔哩链接：</p>
+                    <input type="url" id="modal-link-input" placeholder="例如：https://www.bilibili.com/video/BVxxxxxx">
+                </div>
+                
+                <!-- Container for multi-link inputs -->
+                <div id="modal-multi-inputs-container" style="display: none;">
+                    <!-- Dynamic inputs for sub-courses will be added here -->
+                </div>
+
+                <!-- Container for editing icon text -->
+                <div id="modal-edit-text-container" class="modal-input-section" style="display: none;">
+                    <label for="modal-text-input">图标文字:</label>
+                    <input type="text" id="modal-text-input" placeholder="输入新的图标文字">
+                </div>
+                
+                <div class="modal-buttons">
+                    <button id="modal-save-button">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deletion Confirmation Modal -->
+        <div id="delete-confirm-modal" class="modal">
+            <div class="modal-content">
+                <h2 id="delete-modal-title">确认删除</h2>
+                <p id="delete-confirm-message">您确定要删除这个项目吗？此操作无法撤销。</p>
+                <div class="modal-buttons">
+                    <button id="cancel-delete-button" class="modal-cancel-btn">取消</button>
+                    <button id="confirm-delete-button" class="modal-confirm-btn">确认删除</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Add Item Modal -->
+        <div id="add-item-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2 id="add-item-modal-title">添加新项目</h2>
+                <div class="modal-input-section">
+                    <label for="add-item-modal-input">项目名称:</label>
+                    <input type="text" id="add-item-modal-input" placeholder="输入新项目名称">
+                </div>
+                <div class="modal-buttons">
+                    <button id="cancel-add-item-button" class="modal-cancel-btn">取消</button>
+                    <button id="confirm-add-item-button" class="modal-confirm-btn">确认添加</button>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="celebration-toast">
+            <span class="toast-flowers">🌸</span>
+            <span id="toast-message">太棒了！离成功又近了一步！</span>
+            <span class="toast-flowers">🎉</span>
+        </div>
+    </div> 
+    
+    <footer>
+        <p>轻松记录和返回您在哔哩哔哩上学习的课程进度。</p>
+        <div class="data-actions-container">
+            <button id="edit-mode-button" class="action-button">编辑</button>
+            <button id="export-data-button" class="action-button">导出记录</button>
+            <button id="import-data-button" class="action-button">导入记录</button>
+            <input type="file" id="import-file-input" accept=".json" style="display: none;">
+        </div>
+        <p><strong>使用说明：</strong>点击课程图标或子课程图标打开上次观看的视频。观看新视频后，点击相应的“更新进度”按钮，粘贴新的视频链接并保存。</p>
+        <p><strong>编辑模式说明：</strong>点击“编辑”按钮进入编辑模式。点击绿色“+”添加子项目，点击蓝色铅笔“✎”编辑图标文字，点击红色“X”删除项目。</p>
+    </footer>
+
+    <script>
+        // --- 全局状态和常量 ---
+        let courses = [
+            { id: 'chinese', name: '语文', iconText: '语文', defaultUrl: 'BILIBILI_CHINESE_PLACEHOLDER', currentUrl: null },
+            { id: 'math', name: '数学', iconText: '数学', defaultUrl: 'BILIBILI_MATH_PLACEHOLDER', currentUrl: null },
+            {
+                id: 'english', name: '英语', isMultiLink: true,
+                subCourses: [
+                    { name: '兔子', defaultUrl: 'BILIBILI_ENGLISH_RABBIT_PLACEHOLDER', currentUrl: null, iconText: '兔子' },
+                    { name: '一英', defaultUrl: 'BILIBILI_ENGLISH_YIYING_PLACEHOLDER', currentUrl: null, iconText: '一英' },
+                    { name: 'free', defaultUrl: 'BILIBILI_ENGLISH_FREE_PLACEHOLDER', currentUrl: null, iconText: 'free' } 
+                ]
+            },
+            {
+                id: 'physics', name: '物理', isMultiLink: true,
+                subCourses: [
+                    { name: '跳跳', defaultUrl: 'BILIBILI_PHYSICS_TIAOTIAO_PLACEHOLDER', currentUrl: null, iconText: '跳跳' },
+                    { name: '夫人', defaultUrl: 'BILIBILI_PHYSICS_FUREN_PLACEHOLDER', currentUrl: null, iconText: '夫人' }
+                ]
+            },
+            {
+                id: 'biology', name: '生物', isMultiLink: true,
+                subCourses: [
+                    { name: '汉水', defaultUrl: 'BILIBILI_BIOLOGY_HANSHUI_PLACEHOLDER', currentUrl: null, iconText: '汉水' },
+                    { name: '一生', defaultUrl: 'BILIBILI_BIOLOGY_YISHENG_PLACEHOLDER', currentUrl: null, iconText: '一生' }
+                ]
+            },
+            { id: 'chemistry', name: '化学', iconText: '化学', defaultUrl: 'BILIBILI_CHEMISTRY_PLACEHOLDER', currentUrl: null }
+        ];
+        let isEditMode = false; // Flag for edit mode
+        let currentCourseToUpdate = null; 
+        let currentSubCourseToUpdate = null;
+        let currentModalMode = 'link'; // 'link', 'text', 'delete', 'add'
+        let itemToAddInfo = { isAdding: false, courseId: null };
+
+
+        const BILIBILI_LINK_PLACEHOLDER_PREFIX = 'BILIBILI_'; 
+        const LOCAL_STORAGE_KEY = 'bilibiliCourseTracker';
+
+        // --- DOM 元素获取 ---
+        const courseContainer = document.getElementById('course-container');
+        const mainModal = document.getElementById('main-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const closeButton = mainModal.querySelector('.close-button');
+        const modalDefaultInputContainer = document.getElementById('modal-default-input-container');
+        const modalLinkInput = document.getElementById('modal-link-input');
+        const modalMultiInputsContainer = document.getElementById('modal-multi-inputs-container'); 
+        const modalEditTextContainer = document.getElementById('modal-edit-text-container');
+        const modalTextInput = document.getElementById('modal-text-input');
+        const modalSaveButton = document.getElementById('modal-save-button');
+        const celebrationToast = document.getElementById('celebration-toast');
+        const toastMessageElement = document.getElementById('toast-message');
+        const exportDataButton = document.getElementById('export-data-button');
+        const importDataButton = document.getElementById('import-data-button');
+        const importFileInput = document.getElementById('import-file-input');
+        const editModeButton = document.getElementById('edit-mode-button');
+        const deleteConfirmModal = document.getElementById('delete-confirm-modal');
+        const confirmDeleteButton = document.getElementById('confirm-delete-button');
+        const cancelDeleteButton = document.getElementById('cancel-delete-button');
+        const deleteConfirmMessage = document.getElementById('delete-confirm-message');
+        const deleteModalTitle = document.getElementById('delete-modal-title');
+        const addItemModal = document.getElementById('add-item-modal');
+        const addItemModalTitle = document.getElementById('add-item-modal-title');
+        const addItemModalInput = document.getElementById('add-item-modal-input');
+        const confirmAddItemButton = document.getElementById('confirm-add-item-button');
+        const cancelAddItemButton = document.getElementById('cancel-add-item-button');
+
+
+        const encouragingMessages = [
+            "太棒了！离成功又近了一步！", "恭喜你，坚持就是胜利！", "真厉害！继续保持这个势头！",
+            "又完成了一个小目标，为你喝彩！", "学无止境，你又进步啦！", "为你点赞！向着目标前进！",
+            "好样的！每一次努力都算数！", "“书山有路勤为径，学海无涯苦作舟。” - 韩愈",
+            "“锲而不舍，金石可镂。” - 荀子", "“千里之行，始于足下。” - 老子"
+        ];
+        const flowerEmojis = ["🌸", "🌼", "🌻", "🌹", "🌷", "🎉", "✨", "🌟", "💖", "🎈", "🎊", "💫", "🥳"];
+
+        // --- 数据处理函数 ---
+        function getSubCourse(course, subCourseName) {
+            if (course && course.isMultiLink && course.subCourses) {
+                return course.subCourses.find(sc => sc.name === subCourseName);
+            }
+            return null;
+        }
+
+        function loadCourses() {
+            const storedCourses = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (storedCourses) {
+                try {
+                    const parsedStoredCourses = JSON.parse(storedCourses);
+                    if (Array.isArray(parsedStoredCourses)) {
+                        // A simple merge: keep default structure, update with stored data
+                        const storedCoursesMap = new Map(parsedStoredCourses.map(sc => [sc.id, sc]));
+                        courses = courses.map(defaultCourse => {
+                            const storedCourse = storedCoursesMap.get(defaultCourse.id);
+                            if (storedCourse) {
+                                let mergedCourse = { ...defaultCourse, ...storedCourse };
+                                if (defaultCourse.isMultiLink && Array.isArray(defaultCourse.subCourses)) {
+                                    mergedCourse.subCourses = defaultCourse.subCourses.map(defaultSubCourse => {
+                                        const storedSubCourse = Array.isArray(storedCourse.subCourses) ? 
+                                                                storedCourse.subCourses.find(sc => sc.name === defaultSubCourse.name) : null;
+                                        return storedSubCourse ? { ...defaultSubCourse, ...storedSubCourse } : defaultSubCourse;
+                                    });
+                                }
+                                return mergedCourse;
+                            }
+                            return defaultCourse;
+                        }).filter(c => c); // Filter out nulls if any
+                    } else {
+                         console.warn("Stored data is not an array. Using default courses.");
+                    }
+                } catch (error) {
+                    console.error("Error parsing stored courses data:", error);
+                    showToast("加载记录时出错，可能记录已损坏。", true);
+                }
+            }
+        }
+
+        function saveCourses() {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(courses));
+        }
+
+        // --- 渲染函数 ---
+        function renderCourses() {
+            courseContainer.innerHTML = ''; 
+            courses.forEach(course => {
+                const courseDiv = document.createElement('div');
+                courseDiv.className = 'course-item-container';
+                
+                if (course.isMultiLink && course.subCourses) { 
+                    // ... Multi-link course rendering ...
+                    const subIconsContainer = document.createElement('div');
+                    subIconsContainer.className = 'sub-courses-icons-container'; 
+                    course.subCourses.forEach(subCourse => {
+                        const subCourseItemDiv = document.createElement('div');
+                        subCourseItemDiv.className = 'sub-course-item'; 
+                        
+                        const subIconButton = document.createElement('button');
+                        subIconButton.className = 'sub-course-icon'; 
+                        subIconButton.textContent = subCourse.iconText || subCourse.name; 
+                        subIconButton.title = `打开 ${course.name} - ${subCourse.name}`;
+                        subIconButton.addEventListener('click', () => {
+                            if (isEditMode) return;
+                            let urlToOpen = subCourse.currentUrl || subCourse.defaultUrl;
+                            if (!urlToOpen || urlToOpen.startsWith(BILIBILI_LINK_PLACEHOLDER_PREFIX)) { 
+                                showToast(`请先为 "${course.name} - ${subCourse.name}" 更新链接。`, true); 
+                                openModal(course.id, null, 'link'); 
+                            } else {
+                                window.open(urlToOpen, '_blank');
+                            }
+                        });
+                        
+                        const subCourseNameLabel = document.createElement('span');
+                        subCourseNameLabel.className = 'sub-course-item-name'; 
+                        subCourseNameLabel.textContent = subCourse.iconText || subCourse.name;
+                        
+                        subCourseItemDiv.appendChild(subIconButton);
+                        subCourseItemDiv.appendChild(subCourseNameLabel);
+                        
+                        // Add edit buttons for sub-course
+                        const deleteBtn = createDeleteButton(() => openDeleteModal(course.id, subCourse.name));
+                        const editBtn = createEditButton(() => openModal(course.id, subCourse.name, 'text'));
+                        subCourseItemDiv.appendChild(deleteBtn);
+                        subCourseItemDiv.appendChild(editBtn);
+
+                        subIconsContainer.appendChild(subCourseItemDiv);
+                    });
+                    courseDiv.appendChild(subIconsContainer); 
+                    
+                    const nameLabel = document.createElement('p');
+                    nameLabel.className = 'course-name multi-link-title';
+                    nameLabel.textContent = course.name;
+                    courseDiv.appendChild(nameLabel); 
+                    
+                    const mainUpdateButton = document.createElement('button');
+                    mainUpdateButton.className = 'update-link-button';
+                    mainUpdateButton.textContent = '更新进度';
+                    mainUpdateButton.addEventListener('click', () => openModal(course.id, null, 'link'));
+                    courseDiv.appendChild(mainUpdateButton);
+
+                } else { 
+                    // ... Single course rendering ...
+                    const iconButton = document.createElement('button');
+                    iconButton.className = 'course-icon';
+                    iconButton.textContent = course.iconText || course.name;
+                    iconButton.title = `打开 ${course.name} (上次观看位置)`;
+                    iconButton.addEventListener('click', () => {
+                        if (isEditMode) return;
+                        let urlToOpen = course.currentUrl || course.defaultUrl;
+                        if (!urlToOpen || urlToOpen.startsWith(BILIBILI_LINK_PLACEHOLDER_PREFIX)) { 
+                            showToast(`请先为 "${course.name}" 设置链接。`, true); 
+                            openModal(course.id, null, 'link'); 
+                        } else {
+                            window.open(urlToOpen, '_blank');
+                        }
+                    });
+                    
+                    const nameLabel = document.createElement('p');
+                    nameLabel.className = 'course-name';
+                    nameLabel.textContent = course.iconText || course.name;
+                    
+                    const updateButton = document.createElement('button');
+                    updateButton.className = 'update-link-button';
+                    updateButton.textContent = '更新进度';
+                    updateButton.title = `更新 ${course.name} 的当前课时链接`;
+                    updateButton.addEventListener('click', () => openModal(course.id, null, 'link'));
+                    
+                    courseDiv.appendChild(iconButton); 
+                    courseDiv.appendChild(nameLabel);   
+                    courseDiv.appendChild(updateButton);
+                }
+
+                // Add edit buttons for main course container
+                const deleteBtn = createDeleteButton(() => openDeleteModal(course.id, null));
+                const addBtn = createAddButton(() => openAddItemModal(course.id));
+                courseDiv.appendChild(addBtn);
+
+                const editBtn = createEditButton(() => openModal(course.id, null, 'text'));
+                if (!course.isMultiLink) { // Only add edit button to single courses here
+                    courseDiv.appendChild(editBtn);
+                }
+                courseDiv.appendChild(deleteBtn);
+
+                courseContainer.appendChild(courseDiv);
+            });
+        }
+
+        // --- 编辑模式相关函数 ---
+        function createDeleteButton(onClick) {
+            const button = document.createElement('button');
+            button.className = 'delete-course-btn';
+            button.innerHTML = '&times;';
+            button.title = '删除';
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onClick();
+            });
+            return button;
+        }
+
+        function createEditButton(onClick) {
+            const button = document.createElement('button');
+            button.className = 'edit-icon-text-btn';
+            button.innerHTML = '&#9998;'; // Pencil icon
+            button.title = '编辑图标文字';
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onClick();
+            });
+            return button;
+        }
+        
+        function createAddButton(onClick) {
+            const button = document.createElement('button');
+            button.className = 'add-sub-course-btn';
+            button.innerHTML = '+';
+            button.title = '添加子项目';
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onClick();
+            });
+            return button;
+        }
+
+
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            document.body.classList.toggle('edit-mode-active', isEditMode);
+            editModeButton.textContent = isEditMode ? '完成编辑' : '编辑';
+            editModeButton.classList.toggle('edit-mode-active-btn', isEditMode);
+            renderCourses(); // Re-render to show/hide buttons
+        }
+
+        // --- 弹窗 (Modal) 函数 ---
+        function openModal(courseId, subCourseName = null, mode = 'link') {
+            currentCourseToUpdate = courses.find(c => c.id === courseId);
+            if (!currentCourseToUpdate) return;
+
+            currentSubCourseToUpdate = subCourseName ? getSubCourse(currentCourseToUpdate, subCourseName) : null;
+            currentModalMode = mode;
+
+            // Reset all modal sections
+            modalDefaultInputContainer.style.display = 'none';
+            modalMultiInputsContainer.style.display = 'none';
+            modalEditTextContainer.style.display = 'none';
+
+            if (mode === 'link') {
+                modalTitle.textContent = `更新 "${currentCourseToUpdate.name}" 课程链接`;
+                if (currentCourseToUpdate.isMultiLink) {
+                    modalMultiInputsContainer.innerHTML = '<p>请为以下子项目更新链接 (留空则不更新)：</p>'; 
+                    currentCourseToUpdate.subCourses.forEach((subCourse, index) => {
+                        const sectionDiv = document.createElement('div');
+                        sectionDiv.className = 'modal-input-section';
+                        const inputId = `modal-sub-input-${courseId}-${index}`;
+                        const displayName = subCourse.iconText || subCourse.name;
+                        sectionDiv.innerHTML = `
+                            <label for="${inputId}">${displayName}:</label>
+                            <input type="url" id="${inputId}" placeholder="${(subCourse.currentUrl && !subCourse.currentUrl.startsWith(BILIBILI_LINK_PLACEHOLDER_PREFIX)) ? subCourse.currentUrl : `${displayName}的B站链接`}" data-sub-course-name="${subCourse.name}">
+                        `;
+                        modalMultiInputsContainer.appendChild(sectionDiv);
+                    });
+                    modalMultiInputsContainer.style.display = 'block';
+                } else {
+                    modalLinkInput.value = '';
+                    modalLinkInput.placeholder = (currentCourseToUpdate.currentUrl && !currentCourseToUpdate.currentUrl.startsWith(BILIBILI_LINK_PLACEHOLDER_PREFIX)) ? currentCourseToUpdate.currentUrl : "例如：https://www.bilibili.com/video/BVxxxxxx";
+                    modalDefaultInputContainer.style.display = 'block';
+                    modalLinkInput.focus();
+                }
+            } else if (mode === 'text') {
+                const itemToEditText = currentSubCourseToUpdate || currentCourseToUpdate;
+                modalTitle.textContent = `编辑 "${itemToEditText.name}" 的图标文字`;
+                modalTextInput.value = itemToEditText.iconText || '';
+                modalEditTextContainer.style.display = 'block';
+                modalTextInput.focus();
+            }
+            
+            mainModal.style.display = 'flex';
+        }
+
+        function openDeleteModal(courseId, subCourseName = null) {
+            currentCourseToUpdate = courses.find(c => c.id === courseId);
+            if (!currentCourseToUpdate) return;
+            currentSubCourseToUpdate = subCourseName ? getSubCourse(currentCourseToUpdate, subCourseName) : null;
+            
+            const itemToDeleteName = currentSubCourseToUpdate ? `${currentCourseToUpdate.name} - (子项目: ${currentSubCourseToUpdate.iconText || currentSubCourseToUpdate.name})` : currentCourseToUpdate.name;
+            deleteModalTitle.textContent = `确认删除 "${itemToDeleteName}"`;
+            deleteConfirmMessage.textContent = `您确定要删除 "${itemToDeleteName}" 吗？此操作无法撤销。`;
+            deleteConfirmModal.style.display = 'flex';
+        }
+        
+        function openAddItemModal(courseId = null) {
+            itemToAddInfo.isAdding = true;
+            itemToAddInfo.courseId = courseId;
+            addItemModalInput.value = '';
+
+            if (courseId) {
+                const course = courses.find(c => c.id === courseId);
+                addItemModalTitle.textContent = `为 "${course.name}" 添加子项目`;
+                addItemModalInput.placeholder = '输入新的子项目名称';
+            } else {
+                // This case is now removed from the UI
+                addItemModalTitle.textContent = '添加新课程';
+                addItemModalInput.placeholder = '输入新的课程名称';
+            }
+            addItemModal.style.display = 'flex';
+            addItemModalInput.focus();
+        }
+
+
+        function closeModal() {
+            mainModal.style.display = 'none';
+            deleteConfirmModal.style.display = 'none';
+            addItemModal.style.display = 'none';
+            currentCourseToUpdate = null;
+            currentSubCourseToUpdate = null;
+            itemToAddInfo = { isAdding: false, courseId: null };
+        }
+
+        function handleModalSave() {
+            if (!currentCourseToUpdate) return; 
+            let changed = false;
+
+            if (currentModalMode === 'link') {
+                // ... Link saving logic ...
+                if (currentCourseToUpdate.isMultiLink) {
+                    const dynamicInputs = modalMultiInputsContainer.querySelectorAll('input[type="url"]');
+                    dynamicInputs.forEach(input => {
+                        const subName = input.dataset.subCourseName;
+                        const subCourse = getSubCourse(currentCourseToUpdate, subName);
+                        const newUrl = input.value.trim();
+                        if (newUrl && subCourse && subCourse.currentUrl !== newUrl) {
+                            subCourse.currentUrl = newUrl;
+                            changed = true;
+                        }
+                    });
+                } else {
+                    const newUrl = modalLinkInput.value.trim();
+                    if (newUrl && currentCourseToUpdate.currentUrl !== newUrl) {
+                        currentCourseToUpdate.currentUrl = newUrl;
+                        changed = true;
+                    }
+                }
+            } else if (currentModalMode === 'text') {
+                // ... Text saving logic ...
+                const itemToEditText = currentSubCourseToUpdate || currentCourseToUpdate;
+                const newText = modalTextInput.value.trim();
+                // Allow clearing the text
+                if (itemToEditText.iconText !== newText) {
+                    itemToEditText.iconText = newText;
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                saveCourses();
+                renderCourses(); 
+                const randomMessage = encouragingMessages[Math.floor(Math.random() * encouragingMessages.length)];
+                showToast(randomMessage);
+            }
+            closeModal();
+        }
+        
+        function handleDeleteConfirm() {
+            if (!currentCourseToUpdate) return;
+
+            if (currentSubCourseToUpdate) {
+                // Delete a sub-course
+                currentCourseToUpdate.subCourses = currentCourseToUpdate.subCourses.filter(
+                    sc => sc.name !== currentSubCourseToUpdate.name
+                );
+                 // If it becomes a single item, convert it back
+                if (currentCourseToUpdate.subCourses.length === 1) {
+                    const lastSubCourse = currentCourseToUpdate.subCourses[0];
+                    currentCourseToUpdate.iconText = lastSubCourse.iconText || lastSubCourse.name;
+                    currentCourseToUpdate.currentUrl = lastSubCourse.currentUrl;
+                    currentCourseToUpdate.defaultUrl = lastSubCourse.defaultUrl;
+                    delete currentCourseToUpdate.subCourses;
+                    delete currentCourseToUpdate.isMultiLink;
+                }
+
+            } else {
+                // Delete a main course
+                courses = courses.filter(c => c.id !== currentCourseToUpdate.id);
+            }
+            
+            saveCourses();
+            renderCourses();
+            showToast('项目已删除。');
+            closeModal();
+        }
+        
+        function handleAddItemConfirm() {
+            const newName = addItemModalInput.value.trim();
+            if (!newName) {
+                showToast('项目名称不能为空。', true);
+                return;
+            }
+
+            // Logic is only for adding sub-items now
+            if (itemToAddInfo.courseId) {
+                const course = courses.find(c => c.id === itemToAddInfo.courseId);
+                if (!course) return;
+
+                if (course.isMultiLink) {
+                    // Already a multi-link course, just add
+                    course.subCourses.push({
+                        name: newName,
+                        defaultUrl: `BILIBILI_${course.id.toUpperCase()}_${newName.toUpperCase()}_PLACEHOLDER`,
+                        currentUrl: null,
+                        iconText: newName
+                    });
+                } else {
+                    // This is a single course, convert it
+                    const originalSubCourse = {
+                        name: course.name,
+                        defaultUrl: course.defaultUrl,
+                        currentUrl: course.currentUrl,
+                        iconText: course.iconText || course.name
+                    };
+                    const newSubCourse = {
+                        name: newName,
+                        defaultUrl: `BILIBILI_${course.id.toUpperCase()}_${newName.toUpperCase()}_PLACEHOLDER`,
+                        currentUrl: null,
+                        iconText: newName
+                    };
+                    
+                    course.isMultiLink = true;
+                    course.subCourses = [originalSubCourse, newSubCourse];
+                    delete course.iconText;
+                    delete course.currentUrl;
+                    delete course.defaultUrl;
+                }
+            } 
+            
+            saveCourses();
+            renderCourses();
+            showToast(`"${newName}" 已成功添加！`);
+            closeModal();
+        }
+
+
+        // --- 提示 (Toast) 函数 ---
+        let toastTimeout; 
+        function showToast(message, isError = false) {
+            clearTimeout(toastTimeout); 
+            toastMessageElement.textContent = message;
+            const flowerSpans = celebrationToast.querySelectorAll('.toast-flowers');
+            if (isError) {
+                flowerSpans.forEach(span => span.textContent = '⚠️');
+                celebrationToast.style.backgroundColor = '#e74c3c'; 
+            } else {
+                flowerSpans[0].textContent = flowerEmojis[Math.floor(Math.random() * flowerEmojis.length)];
+                flowerSpans[1].textContent = flowerEmojis[Math.floor(Math.random() * flowerEmojis.length)];
+                celebrationToast.style.backgroundColor = '#2ecc71'; 
+            }
+            celebrationToast.classList.add('show');
+            toastTimeout = setTimeout(() => {
+                celebrationToast.classList.remove('show');
+            }, 3500); 
+        }
+
+        // --- 导入/导出功能 ---
+        exportDataButton.addEventListener('click', () => {
+            const data = JSON.stringify(courses, null, 2); // Pretty print JSON
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'bilibili_course_tracker_data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('记录已成功导出！');
+        });
+
+        importDataButton.addEventListener('click', () => importFileInput.click());
+
+        importFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importedCourses = JSON.parse(e.target.result);
+                    if (Array.isArray(importedCourses)) {
+                        courses = importedCourses; // Overwrite with imported data
+                        saveCourses();
+                        renderCourses();
+                        showToast('记录已成功导入！');
+                    } else {
+                        showToast('导入失败：文件内容格式不正确。', true);
+                    }
+                } catch (error) {
+                    showToast('导入记录失败，文件可能已损坏。', true);
+                } finally {
+                    importFileInput.value = '';
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // --- 事件监听器绑定 ---
+        confirmAddItemButton.addEventListener('click', handleAddItemConfirm);
+        cancelAddItemButton.addEventListener('click', closeModal);
+        addItemModal.querySelector('.close-button')?.addEventListener('click', closeModal);
+
+        editModeButton.addEventListener('click', toggleEditMode);
+        modalSaveButton.addEventListener('click', handleModalSave);
+        confirmDeleteButton.addEventListener('click', handleDeleteConfirm);
+        cancelDeleteButton.addEventListener('click', closeModal);
+        closeButton.addEventListener('click', closeModal);
+        deleteConfirmModal.querySelector('.close-button')?.addEventListener('click', closeModal);
+
+        window.addEventListener('click', (event) => {
+            if (event.target === mainModal || event.target === deleteConfirmModal || event.target === addItemModal) {
+                closeModal();
+            }
+        });
+        
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+            if (event.key === 'Enter') {
+                 if (mainModal.style.display === 'flex') handleModalSave();
+                 if (deleteConfirmModal.style.display === 'flex') handleDeleteConfirm();
+                 if (addItemModal.style.display === 'flex') handleAddItemConfirm();
+            }
+        });
+
+        // --- 初始化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCourses(); 
+            renderCourses(); 
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,2313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>学习复习计划表（热力图增强版）</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+<!-- 引入 canvas-confetti 动画库 -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+<style>
+:root {
+  /* 背景与基色 */
+  --bg-start: #f5f7fa;
+  --bg-end: #e8f0ff;
+  --card-bg: #ffffffee;
+  --card-border: #dfe6f3;
+  --header-bg: #eef3ff;
+  --text: #2c2c2e;
+  --blue: #0a84ff;
+  --green: #34c759;
+  --red: #ff453a;
+  --orange: #ff9500;
+  --purple: #af52de;
+  --teal: #5ac8fa;
+  --gold: #ffcc00;
+  --gold-dark: #e6b800;
+  --gray: #8e8e93; 
+  --gray-dark: #636366;
+  --indigo: #5856d6;
+  --pink: #ff2d55;
+
+
+  /* 彩色学科标签 */
+  --phys: #34c759;
+  --chem: #ff9500;
+  --math: #0a84ff;
+  --bio:  #2ecc71;
+  --chi:  #af52de;
+  --eng:  #ff375f;
+  --poli: #5856d6;
+  --hist: #ff9500;
+  --geo:  #2ecc71;
+}
+
+/* 优化移动端触控体验，防止双击缩放，提高双击事件响应率 */
+html {
+    touch-action: manipulation; 
+    height: 100%;
+    margin: 0;
+}
+
+body{
+  display:flex;flex-direction:column;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:14px;color:var(--text);background:linear-gradient(130deg,var(--bg-start) 0%,var(--bg-end) 100%);
+  transition: background 0.5s ease;
+  margin: 0;
+}
+body.science-mode{background:linear-gradient(130deg,#fff0e6 0%,#e6f7ff 100%);}
+body.arts-mode{background:linear-gradient(130deg,#fff5e6 0%,#ffe6e6 100%);}
+
+h2{margin:24px 24px 16px;font-weight:600;display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+main{flex:1;padding:0 24px 40px;box-sizing:border-box;}
+
+#controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;align-items:center;}
+input,button, select {font-size:14px;border-radius:10px;outline:none;}
+input[type="text"],input[type="datetime-local"], select {
+  padding:8px 12px;
+  border:1px solid var(--card-border);
+  background:#fff;
+  min-width:100px;
+}
+input:focus, select:focus {
+  border-color:var(--blue);
+  box-shadow:0 0 0 2px rgba(10,132,255,.25);
+}
+
+/* =========================================
+   搜索面板样式 (修复版：推拉式)
+   ========================================= */
+
+/* 搜索按钮 */
+#searchIconBtn {
+    background: var(--blue);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 10px;
+    min-width: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(10, 132, 255, 0.3);
+    font-size: 14px; 
+    font-weight: 600;
+    transition: transform 0.2s, background 0.2s;
+}
+#searchIconBtn:hover {
+    transform: translateY(-1px);
+    background: #0073e6;
+    opacity: 0.88;
+}
+/* 【修改点】这里把灰色 var(--gray-dark) 改成了橙色 var(--orange) */
+#searchIconBtn.active {
+    background: var(--orange); 
+    transform: none;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.1); /* 加一点内阴影更有按下的感觉 */
+}
+
+/* 筛选面板容器 - 独立占据一行，不遮挡表格 */
+#filterPanel {
+    display: none; /* 默认隐藏 */
+    width: 100%;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--card-border);
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.03);
+    padding: 15px;
+    border-radius: 14px;
+    margin-bottom: 20px; /* 增加底部间距，推开表格 */
+    box-sizing: border-box;
+    
+    /* 内部布局 */
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    
+    /* 动画 */
+    animation: slideDown 0.3s ease-out forwards;
+}
+
+#filterPanel.show {
+    display: flex;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* -------------------------------------
+   UI 样式
+   ------------------------------------- */
+#searchInput {
+    flex: 1; /* 让搜索框稍微长一点 */
+    min-width: 200px;
+    border: 1px solid var(--blue);
+    background-color: #fff; 
+    color: #333; /* 强制字体颜色，防止看不见 */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230a84ff' width='18px' height='18px'%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+    padding-left: 38px;
+    border-radius: 20px;
+}
+#searchInput:focus {
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+}
+
+#yearFilterSelect, #monthFilterSelect, #importanceFilterSelect {
+    border-radius: 8px;
+    background-color: #f0f0f5; 
+    border-color: #d1d1d6;
+}
+
+button {
+  padding: 8px 16px;
+  border: none;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out, transform 0.1s ease;
+  border-radius: 10px;
+}
+button:hover { opacity: 0.88; }
+button:active { opacity: 0.75; transform: translateY(1px); }
+
+#addBtn { background: var(--blue); }
+#todayBtn { background: var(--blue); }
+#next7DaysBtn { background: var(--teal); }
+#next7DaysBtn:hover { background: #4cb8e0; opacity: 1;}
+#next7DaysBtn:active { background: #3aa8d0; opacity: 1;}
+
+#clearFilterBtn { background: var(--gold); color: #333; font-weight: 600;}
+#clearFilterBtn:hover { background: var(--gold-dark); opacity: 1;}
+#clearFilterBtn:active { background: #cca300; opacity: 1;}
+
+#scrollToBottomBtn { background: var(--indigo); padding: 8px 12px; font-size: 16px; line-height: 1;}
+#scrollToBottomBtn:hover { background: #4744b3; opacity: 1;}
+#scrollToBottomBtn:active { background: #363399; opacity: 1;}
+
+.modeBtn.science { background: var(--orange); }
+.modeBtn.arts { background: var(--purple); }
+#exportBtn { background: var(--green); }
+#importBtn { background: var(--purple); }
+#statsBtn { background: var(--indigo); }
+
+#addBtn:hover, #todayBtn:hover { background: #0073e6; opacity: 1; }
+#addBtn:active, #todayBtn:active { background: #005cb3; opacity: 1; }
+.modeBtn.science:hover { background: #e68600; opacity: 1; }
+.modeBtn.science:active { background: #cc7700; opacity: 1; }
+.modeBtn.arts:hover { background: #9d3cce; opacity: 1; }
+.modeBtn.arts:active { background: #8b2db4; opacity: 1; }
+#exportBtn:hover { background: #2fa84f; opacity: 1; }
+#exportBtn:active { background: #268540; opacity: 1; }
+#importBtn:hover { background: #9d3cce; opacity: 1; }
+#importBtn:active { background: #8b2db4; opacity: 1; }
+#statsBtn:hover { background: #4744b3; opacity: 1; }
+
+
+.table-wrap{overflow-x:auto; margin-top: 0px;}
+table{width:100%;border-collapse:collapse;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;box-shadow:0 8px 24px rgba(60,64,67,.1);}
+th,td{padding:12px 8px;text-align:center;border-bottom:1px solid var(--card-border); font-size: 13px; vertical-align: middle;}
+th{background:var(--header-bg);font-weight:600;white-space:nowrap; font-size: 14px;}
+
+th:first-child,
+td:first-child {
+  border-right: 1px solid var(--card-border);
+}
+td:first-child {
+    font-weight: 600;
+}
+
+th:nth-child(5),
+td:nth-child(5) {
+  border-right: 1px solid var(--card-border);
+}
+
+tr:last-child td{border-bottom:none;}
+td:nth-child(2) { text-align: left; }
+td:nth-child(4) { min-width: 100px; }
+
+th.compact-date-header {
+    min-width: 55px;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+th.double-compact-header {
+    min-width: 110px;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+th.full-date-header {
+    min-width: 120px;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.date-cell-container { line-height: 1.25; }
+.date-month { font-size: 10px; color: var(--blue); font-weight: 600; display: block; }
+.date-day { font-size: 16px; font-weight: 600; display: block; }
+
+/* 动画效果库 */
+.anim-jello { animation: jello-horizontal var(--anim-duration, 0.9s) both; }
+@keyframes jello-horizontal {
+  11.1% { transform: none; } 22.2% { transform: skewX(-12.5deg) skewY(-12.5deg); } 33.3% { transform: skewX(6.25deg) skewY(6.25deg); } 44.4% { transform: skewX(-3.125deg) skewY(-3.125deg); } 55.5% { transform: skewX(1.5625deg) skewY(1.5625deg); } 66.6% { transform: skewX(-0.78125deg) skewY(-0.78125deg); } 77.7% { transform: skewX(0.390625deg) skewY(0.390625deg); } 88.8% { transform: skewX(-0.1953125deg) skewY(-0.1953125deg); } 100% { transform: none; }
+}
+
+.anim-pulse { animation: pulse var(--anim-duration, 0.7s) cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes pulse {
+  0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); }
+}
+
+.anim-flash { animation: flash var(--anim-duration, 0.7s); }
+@keyframes flash {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.2; }
+}
+
+.anim-fade-in { animation: fadeIn var(--anim-duration, 0.5s) ease-in-out; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); }
+}
+
+.anim-wobble { animation: wobble-sm var(--anim-duration, 0.8s) ease-in-out; }
+@keyframes wobble-sm {
+    15% { transform: translateY(-4px); } 30% { transform: translateY(2px); } 45% { transform: translateY(-2px); } 60% { transform: translateY(1px); } 75% { transform: translateY(-1px); } 100% { transform: translateY(0); }
+}
+
+.anim-flip { animation: flip-h var(--anim-duration, 0.6s) ease-in-out; }
+@keyframes flip-h {
+    0% { transform: perspective(400px) rotate3d(0, 1, 0, -360deg); } 100% { transform: perspective(400px) rotate3d(0, 1, 0, 0); }
+}
+
+
+.label{display:inline-block;padding:3px 7px;border-radius:6px;font-size:11px;font-weight:600;color:#fff;margin:2px; line-height: 1.4;}
+.label-物理{background:var(--phys);}
+.label-化学{background:var(--chem);}
+.label-数学{background:var(--math);}
+.label-生物{background:var(--bio);}
+.label-语文{background:var(--chi);}
+.label-英语{background:var(--eng);}
+.label-政治{background:var(--poli);}
+.label-历史{background:var(--hist);}
+.label-地理{background:var(--geo);}
+.label-gray{background:#a0a0a5;color:#fff;font-weight:500;}
+
+.label-重要 { background: var(--red); }
+.label-一般 { background: #a0a0a5; }
+
+td.clickable-cell { cursor: pointer; }
+td.clickable-cell:hover { background-color: #f0f0f030; }
+
+
+.deleteBtn{cursor:pointer;color:var(--red);font-weight:700;font-size:16px;} .deleteBtn:hover{opacity:.7;}
+
+#reviewListContainer h3 { margin-bottom: 8px; }
+#reviewList {
+    list-style-type: none;
+    padding-left: 0;
+    margin-top: 10px;
+}
+#reviewList li {
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
+    padding: 8px 12px;
+    margin-bottom: 5px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+#reviewList li:hover {
+    background-color: #eef3ff;
+    transform: translateX(3px);
+}
+
+#reviewList li.overdue-item {
+    border-left: 4px solid var(--red);
+    background-color: #fff0f0;
+}
+#reviewList li.overdue-item .stage-info {
+    color: var(--red);
+    font-weight: 700;
+}
+
+@keyframes highlightRow {
+    0% { background-color: rgba(255, 235, 59, 0.4); transform: scale(1.01); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    50% { background-color: rgba(255, 235, 59, 0.2); }
+    100% { background-color: transparent; transform: scale(1); box-shadow: none; }
+}
+.highlight-row-anim {
+    animation: highlightRow 2s ease-out forwards;
+}
+
+.group-separator {
+  border-right: 2px solid #a9b8d3;
+}
+
+#toast-container {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+.toast {
+    padding: 12px 20px;
+    background-color: rgba(44, 44, 46, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: white;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: fadeInOut 4s ease-in-out forwards;
+    opacity: 0;
+}
+
+.toast.special-final-toast {
+    font-size: 1.15em;
+    font-weight: 700;
+    color: transparent;
+    background: linear-gradient(45deg, #ffdd57, #ff375f, #af52de, #5ac8fa);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: fadeInOut 4s ease-in-out forwards, gradient-animation 4s ease-in-out infinite;
+}
+
+/* 模态框样式 */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+.modal {
+    background: var(--card-bg);
+    width: 90%;
+    max-width: 700px;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+    max-height: 85vh;
+    overflow-y: auto;
+    border: 1px solid rgba(255,255,255,0.8);
+}
+.modal-overlay.active .modal {
+    transform: scale(1);
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.modal-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+}
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--gray);
+    cursor: pointer;
+    padding: 0;
+}
+.modal-close:hover {
+    color: var(--red);
+}
+
+/* 统计卡片样式 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+}
+.stat-card {
+    background: #fff;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    transition: all 0.3s ease;
+}
+/* 增加统计卡片动态更新时的效果 */
+.stat-card.updating {
+    transform: scale(1.05);
+    box-shadow: 0 8px 15px rgba(10, 132, 255, 0.15);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--blue);
+    margin-bottom: 5px;
+}
+.stat-label {
+    font-size: 13px;
+    color: var(--gray-dark);
+}
+
+.stats-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--card-border);
+    color: var(--text);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+.chart-container {
+    margin-bottom: 25px;
+}
+.bar-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    user-select: none; /* 防止双击时选中文本 */
+}
+/* 交互样式：悬停、选中、未选中变暗 */
+.bar-row:hover {
+    background-color: rgba(10, 132, 255, 0.05);
+}
+.bar-row.active-filter {
+    background-color: rgba(10, 132, 255, 0.1);
+    font-weight: 600;
+    border: 1px solid rgba(10, 132, 255, 0.2);
+}
+.bar-row.dimmed {
+    opacity: 0.4;
+    filter: grayscale(0.5);
+}
+.bar-row.dimmed:hover {
+    opacity: 0.8;
+}
+
+.bar-label {
+    width: 80px;
+    text-align: right;
+    padding-right: 10px;
+    color: var(--gray-dark);
+    font-weight: 500;
+}
+.bar-track {
+    flex: 1;
+    background: #f0f0f5;
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+}
+.bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    background: var(--blue);
+    transition: width 0.6s cubic-bezier(0.2, 0.9, 0.4, 1);
+}
+.bar-value {
+    margin-left: 10px;
+    width: 40px;
+    color: var(--gray);
+}
+
+/* 垂直柱状图 (预测功能新增) */
+.forecast-chart {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    height: 120px;
+    margin-top: 20px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--card-border);
+}
+.forecast-bar-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    height: 100%;
+    justify-content: flex-end;
+    gap: 5px;
+}
+.forecast-bar {
+    width: 20px; 
+    background-color: var(--blue);
+    border-radius: 4px 4px 0 0;
+    transition: height 0.5s ease;
+    min-height: 2px;
+}
+.forecast-label {
+    font-size: 10px;
+    color: var(--gray-dark);
+}
+.forecast-value {
+    font-size: 10px;
+    font-weight: bold;
+    color: var(--blue);
+    margin-bottom: 2px;
+}
+/* 统计区小标题 */
+.stats-section-header {
+    margin-top: 30px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 15px;
+    border-left: 4px solid var(--blue);
+    padding-left: 10px;
+}
+
+/* =========================================
+   Github 风格热力图样式
+   ========================================= */
+.heatmap-container {
+    overflow-x: auto;
+    padding: 15px; /* 增加内边距 */
+    padding-bottom: 10px;
+    background: #fcfcfc; /* 增加浅色背景 */
+    border: 1px solid #e1e4e8; /* 增加边框 */
+    border-radius: 8px; /* 圆角 */
+    /* 隐藏滚动条但保留滚动功能 */
+    scrollbar-width: thin;
+}
+.heatmap-container::-webkit-scrollbar {
+    height: 6px;
+}
+.heatmap-container::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+.heatmap-grid {
+    display: grid;
+    /* 7行代表周日到周六 */
+    grid-template-rows: repeat(7, 12px);
+    grid-auto-flow: column; /* 自动向右排列列 */
+    gap: 4px; /* 增加间距 */
+    width: max-content;
+}
+
+.heatmap-cell {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background-color: #ebedf0; /* 默认空颜色 */
+    cursor: pointer;
+    transition: transform 0.1s;
+    position: relative;
+}
+.heatmap-cell:hover {
+    transform: scale(1.3);
+    z-index: 10;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+/* 过去 Activity 颜色 (绿色) */
+.color-scale-green-0 { background-color: #ebedf0; }
+.color-scale-green-1 { background-color: #9be9a8; }
+.color-scale-green-2 { background-color: #40c463; }
+.color-scale-green-3 { background-color: #30a14e; }
+.color-scale-green-4 { background-color: #216e39; }
+
+/* 未来 Workload 颜色 (灰色/蓝色) */
+.color-scale-gray-0 { background-color: #ebedf0; }
+.color-scale-gray-1 { background-color: #d1d5db; }
+.color-scale-gray-2 { background-color: #9ca3af; }
+.color-scale-gray-3 { background-color: #6b7280; }
+.color-scale-gray-4 { background-color: #374151; }
+
+/* 热力图图例 */
+.heatmap-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    font-size: 11px;
+    color: #586069;
+    margin-top: 8px;
+}
+.legend-item {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+
+@keyframes fadeInOut {
+    0%, 100% { opacity: 0; transform: translateY(20px); }
+    10%, 90% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gradient-animation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+
+@media(max-width:720px){
+    h2 { font-size: 1.25em; margin: 16px 16px 12px;}
+    main { padding: 0 16px 24px; }
+    #controls { gap: 8px; }
+    input, button, select { font-size: 13px; padding: 8px 12px;}
+    th, td { padding: 8px 4px; font-size: 12px; }
+    .label { font-size: 10px; padding: 2px 5px; }
+    .stats-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<h2>
+  学习复习计划表
+  <button id="scienceModeBtn" class="modeBtn science" title="仅显示理科条目">理科模式</button>
+  <button id="artsModeBtn" class="modeBtn arts" title="仅显示文科条目">文科模式</button>
+</h2>
+<main>
+  <div id="controls">
+    <!-- 第一行：添加区域 -->
+    <input id="conceptInput" type="text" placeholder="学习内容 (例如：牛顿第一定律)">
+    <input id="tagsInput" type="text" placeholder="标签 (例如：物理,力学)">
+    <input id="dateInput" type="datetime-local">
+    <select id="importanceSelect">
+        <option value="一般">一般</option>
+        <option value="重要">重要</option>
+    </select>
+    <button id="addBtn">添加学习项</button>
+    
+    <!-- 搜索/筛选区域开关 -->
+    <button id="searchIconBtn" title="点击展开搜索，再次点击清空并收起">搜索</button>
+
+    <button id="scrollToBottomBtn" title="直达底部">↓</button>
+    <hr style="width:100%; border: none; border-top: 1px solid var(--card-border); margin: 5px 0;">
+    <button id="todayBtn">今日复习</button>
+    <button id="next7DaysBtn">未来7日复习</button>
+    <button id="exportBtn">导出数据</button>
+    <button id="importBtn">导入数据</button>
+    <button id="statsBtn" title="查看学习数据统计">📊 数据统计</button>
+
+    <select id="animationSelect" title="选择点击动效">
+        <option value="anim-pulse">动效: 脉冲</option>
+        <option value="anim-flash">动效: 闪烁</option>
+        <option value="anim-fade-in">动效: 浮现</option>
+        <option value="anim-wobble">动效: 微摆</option>
+        <option value="anim-flip">动效: 翻转</option>
+        <option value="anim-jello">动效: 果冻</option>
+        <option value="none">无动效</option>
+    </select>
+    <select id="animationSpeedSelect" title="选择动画速度">
+        <option value="0.2s">速度: 快</option>
+        <option value="0.4s">速度: 中</option>
+        <option value="0.8s">速度: 慢</option>
+    </select>
+  </div>
+  
+  <!-- 独立的筛选面板（修复遮挡问题） -->
+  <div id="filterPanel">
+        <input id="searchInput" type="text" placeholder="搜索内容或标签..." title="实时筛选">
+        <select id="yearFilterSelect">
+        <option value="">选择年份</option>
+    </select>
+    <select id="monthFilterSelect">
+        <option value="">选择月份</option>
+        <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+        <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+        <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+        <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+    </select>
+    <select id="importanceFilterSelect">
+        <option value="">全部</option>
+        <option value="重要">重要</option>
+        <option value="一般">一般</option>
+    </select>
+    <button id="clearFilterBtn">清除筛选</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>序</th><th>学习内容</th><th>重要性</th><th>标签</th><th>初学日期</th>
+          <th class="compact-date-header">1天</th><th class="compact-date-header group-separator">2天</th>
+          <th class="double-compact-header group-separator">3-4天</th>
+          <th class="compact-date-header">1周</th><th class="compact-date-header group-separator">2周</th>
+          <th class="compact-date-header">1个月</th><th class="compact-date-header group-separator">2个月</th>
+          <th class="full-date-header group-separator">3个月</th>
+          <th class="full-date-header group-separator">6个月</th>
+          <th class="full-date-header">1年</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <div id="reviewListContainer">
+    <h3 id="reviewListTitle">今日待复习</h3>
+    <ul id="reviewList"></ul>
+  </div>
+  
+  <div id="toast-container"></div>
+</main>
+
+<!-- 统计模态框 -->
+<div id="statsModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">📊 学习数据分析</div>
+            <button class="modal-close" id="closeStatsBtn">×</button>
+        </div>
+        <div id="statsContent">
+            <!-- 动态生成内容 -->
+        </div>
+    </div>
+</div>
+
+<script>
+/**************** 全局数据 ****************/
+const sciences=["物理","化学","数学","生物"];
+const arts=["语文","英语","政治","历史", "地理"];
+const colorSubjects = {
+    "物理": "物理", "化学": "化学", "数学": "数学", "生物": "生物",
+    "语文": "语文", "英语": "英语", "政治": "政治", "历史": "历史", "地理": "地理"
+};
+
+let scienceMode=false, artsMode=false;
+let currentSelectedYear = "";
+let currentSelectedMonth = "";
+let currentImportanceFilter = "";
+let currentSearchQuery = ""; // 新增：搜索关键词
+let lastAnimatedCell = null; 
+let currentAnimationEffect = 'anim-pulse'; 
+let currentAnimationSpeed = '0.4s'; 
+let selectedStatsTags = new Set(); // 升级：使用 Set 支持多选
+
+const intervals=[1*24*60, 2*24*60, 4*24*60, 7*24*60, 14*24*60, 30*24*60, 60*24*60, 90*24*60, 180*24*60, 365*24*60];
+const stageNames=["1天后", "2天后", "3-4天后", "1周后", "2周后", "1个月后", "2个月后", "3个月后", "6个月后", "1年后"];
+const reviewGroups = [[0, 1], [2], [3, 4], [5, 6], [7], [8], [9]];
+const groupColors = ['#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#007AFF', '#5856D6', '#AF52DE'];
+
+// 群组名称（用于复习列表显示）
+const groupDisplayNames = ["1-2天", "3-4天", "1-2周", "1-2月", "3个月", "6个月", "1年"];
+
+/**************** 工具函数 ****************/
+const pad=n=>String(n).padStart(2,'0');
+
+// 修复1：添加 HTML 转义函数，防止 XSS 攻击
+function escapeHtml(text) {
+  if (!text) return text;
+  return text.replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
+}
+
+function isValidDate(d) {
+  return d instanceof Date && !isNaN(d.getTime());
+}
+
+function isoLocal(d){
+  if (!isValidDate(d)) d = new Date();
+  return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+}
+
+function computeSchedule(baseDate, importance){
+  if (!isValidDate(baseDate)) return [];
+  const baseTimestamp = baseDate.getTime();
+  return intervals.map((minutes, index) => {
+      // 即使是“一般”重要性的第2阶段，也计算出日期，避免返回 null 导致后续崩溃。
+      // UI 渲染时会根据重要性决定是否显示。
+      return new Date(baseTimestamp + minutes * 60000);
+  });
+}
+
+function fmtInit(d){
+  if (!isValidDate(d)) return "日期无效";
+  return`${d.getFullYear()}年${pad(d.getMonth()+1)}月${pad(d.getDate())}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fmtStage(d, stageIndex, initialYear){
+  if (!isValidDate(d)) return "日期无效";
+  const year=d.getFullYear(), month=pad(d.getMonth()+1), day=pad(d.getDate());
+  if(year !== initialYear) return`${year}年${month}月${day}日`;
+  return`${month}月${day}日`;
+}
+
+function fmtStageCompact(d) {
+    if (!isValidDate(d)) return "日期无效";
+    const month = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    return `<div class="date-cell-container"><span class="date-month">${month}月</span><span class="date-day">${day}</span></div>`;
+}
+
+function fmtStageCompactRange(d1, d2) {
+    if (!isValidDate(d1) || !isValidDate(d2)) return "日期无效";
+
+    const month1 = pad(d1.getMonth() + 1);
+    const day1 = pad(d1.getDate());
+    const month2 = pad(d2.getMonth() + 1);
+    const day2 = pad(d2.getDate());
+
+    let monthDisplay, dayDisplay;
+    monthDisplay = `${month1}月`;
+    if (month1 === month2) {
+        dayDisplay = `${day1}-${day2}`;
+    } else {
+        dayDisplay = `${day1}-${month2}/${day2}`;
+    }
+    return `<div class="date-cell-container"><span class="date-month">${monthDisplay}</span><span class="date-day">${dayDisplay}</span></div>`;
+}
+
+function getCalendarDaysDiff(dateFrom, dateTo) {
+    const oneDay = 1000 * 60 * 60 * 24;
+    const d1 = new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate());
+    const d2 = new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate());
+    const diffTime = d2 - d1;
+    return Math.floor(diffTime / oneDay);
+}
+
+function generateUUID() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+}
+
+
+/**************** 庆祝动画与提示 ****************/
+const toastContainer = document.getElementById('toast-container');
+
+function showToast(message, isSpecial = false) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    
+    if (isSpecial) {
+        toast.classList.add('special-final-toast');
+    }
+    
+    toastContainer.appendChild(toast);
+    setTimeout(() => {
+        toast.remove();
+    }, 4000);
+}
+
+function triggerCelebration(groupIndex) {
+    const messages = [
+        [ "温故而知新，不错的第一步！", "开端良好，坚持下去！", "知识的种子已经播下，记得按时浇水哦！", "第一次复习，感觉很棒！" ],
+        [ "短期记忆巩固中！", "3-4天了，印象依然清晰！", "复习小能手就是你！", "趁热打铁，效果加倍！" ], 
+        [ "记忆正在被巩固，坚持就是胜利！", "重复是记忆之母，你做得很棒！", "又完成了一次复习，离学霸又近了一步！", "坚持就是力量，继续加油！" ],
+        [ "太棒了！你正把知识变成长期记忆！", "知识正在内化，你的努力卓有成效！", "感觉记东西越来越轻松了？这是你应得的！", "厉害了！这个知识点快被你“焊”在脑子里了！" ],
+        [ "了不起的毅力！知识已在你脑中生根发芽！", "经过这次复习，这个知识点已经很难忘记了！", "你的坚持令人佩服，继续保持！", "学海无涯，但你已经航行了很远！" ],
+        [ "你已是该领域的“专家”！离成功不远啦！", "这个知识点对你来说已经是老朋友了！", "太稳了！知识大厦的地基已经牢不可破。", "半年了还记得，你太强了！" ],
+        [ { text: "恭喜你已经完成了对这个知识点所有阶段的复习,胜利指日可待加油！", special: true } ]
+    ];
+    
+    if (messages[groupIndex] && messages[groupIndex].length > 0) {
+        const messageOptions = messages[groupIndex];
+        const randomMessageData = messageOptions[Math.floor(Math.random() * messageOptions.length)];
+        
+        if (typeof randomMessageData === 'object' && randomMessageData.special) {
+            showToast(randomMessageData.text, true);
+        } else {
+            showToast(randomMessageData, false);
+        }
+    }
+    
+    switch(groupIndex) {
+        case 0: confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: ['#0a84ff', '#34c759', '#ff9500'] }); break;
+        case 1: confetti({ particleCount: 80, spread: 80, origin: { y: 0.65 }, colors: ['#ffcc00', '#ff9500', '#34c759'] }); break; 
+        case 2: confetti({ particleCount: 100, spread: 100, origin: { y: 0.7 }, colors: ['#0a84ff', '#34c759', '#ff9500', '#ff375f'] }); break; 
+        case 3: confetti({ particleCount: 150, angle: 90, spread: 140, origin: { x: 0.5, y: 1 }, drift: 0, scalar: 1.2, colors: ['#0a84ff', '#5ac8fa', '#af52de', '#ffcc00']}); break; 
+        case 4: case 5: 
+            const duration = 1.5 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                const particleCount = 50 * (timeLeft / duration);
+                confetti({ ...defaults, particleCount, origin: { x: Math.random(), y: Math.random() - 0.2 } });
+            }, 250);
+            break;
+        case 6: 
+            confetti({ particleCount: 150, angle: 60, spread: 65, origin: { x: 0 }, colors: ['#ffcc00', '#ff375f', '#af52de'] });
+            confetti({ particleCount: 150, angle: 120, spread: 65, origin: { x: 1 }, colors: ['#ffcc00', '#ff375f', '#af52de'] });
+            setTimeout(() => {
+                confetti({ particleCount: 100, spread: 200, startVelocity: 25, shapes: ['star'], origin: { y: 0 }, colors: ['#ffcc00', '#ffffff'] });
+            }, 300);
+            break;
+    }
+}
+
+/**************** 数据加载与处理 ****************/
+function revive(arr) {
+  if (!Array.isArray(arr)) { return []; }
+  return arr.map(item => {
+    if (typeof item !== 'object' || item === null) { return null; }
+    item.id = String(item.id || generateUUID());
+    item.concept = typeof item.concept === 'string' ? item.concept.trim() : "未命名内容";
+    item.importance = typeof item.importance === 'string' ? item.importance : '一般';
+    if (item.subject && !item.tags) {
+      item.tags = Array.isArray(item.subject) ? item.subject : (typeof item.subject === 'string' ? [item.subject.trim()] : []);
+      delete item.subject;
+    } else {
+      item.tags = Array.isArray(item.tags) ? item.tags : [];
+    }
+    item.tags = item.tags.map(t => String(t || '').trim()).filter(Boolean);
+    const initialDate = new Date(item.initial);
+    item.initial = initialDate;
+    // 重新计算 schedule，确保没有 null
+    item.schedule = isValidDate(initialDate) ? computeSchedule(initialDate, item.importance) : [];
+    const newReviewed = Array(intervals.length).fill(false);
+    if (Array.isArray(item.reviewed)) {
+        for(let i = 0; i < Math.min(newReviewed.length, item.reviewed.length); i++) {
+            newReviewed[i] = item.reviewed[i] || false;
+        }
+    }
+    item.reviewed = newReviewed;
+
+    // 新增：初始化 reviewLog (用于热力图统计真实复习时间)
+    // 这是一个对象，key为阶段index，value为时间戳字符串
+    if (!item.reviewLog || typeof item.reviewLog !== 'object') {
+        item.reviewLog = {};
+    }
+
+    return item;
+  }).filter(item => item !== null && isValidDate(item.initial));
+}
+
+let data = [];
+try {
+  const storedData = localStorage.getItem('scheduleData');
+  if (storedData) { data = revive(JSON.parse(storedData)); }
+} catch (e) {
+  console.error("Error parsing or reviving data from localStorage:", e);
+  data = [];
+  alert('加载本地数据时出错，部分数据可能未能正确加载。错误详情请查看浏览器控制台。');
+}
+
+function save(){
+  try { 
+      localStorage.setItem('scheduleData',JSON.stringify(data)); 
+      localStorage.setItem('animationPreference', currentAnimationEffect);
+      localStorage.setItem('animationSpeedPreference', currentAnimationSpeed); 
+  }
+  catch (e) { console.error("Error saving data to localStorage:", e); alert("保存数据失败，可能是本地存储已满。"); }
+}
+
+/**************** DOM引用 ****************/
+const conceptInput=document.getElementById('conceptInput');
+const tagsInput=document.getElementById('tagsInput');
+const dateInput=document.getElementById('dateInput');
+const importanceSelect = document.getElementById('importanceSelect');
+const tableBody=document.getElementById('tableBody');
+const reviewListTitle = document.getElementById('reviewListTitle');
+const reviewList = document.getElementById('reviewList');
+const scienceModeBtn = document.getElementById('scienceModeBtn');
+const artsModeBtn = document.getElementById('artsModeBtn');
+const addBtn = document.getElementById('addBtn');
+const todayBtn = document.getElementById('todayBtn');
+const next7DaysBtn = document.getElementById('next7DaysBtn');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn'); 
+const yearFilterSelect = document.getElementById('yearFilterSelect');
+const monthFilterSelect = document.getElementById('monthFilterSelect');
+const importanceFilterSelect = document.getElementById('importanceFilterSelect');
+const clearFilterBtn = document.getElementById('clearFilterBtn');
+const scrollToBottomBtn = document.getElementById('scrollToBottomBtn'); 
+const animationSelect = document.getElementById('animationSelect');
+const animationSpeedSelect = document.getElementById('animationSpeedSelect'); 
+const searchInput = document.getElementById('searchInput'); 
+const statsBtn = document.getElementById('statsBtn'); 
+const statsModal = document.getElementById('statsModal');
+const closeStatsBtn = document.getElementById('closeStatsBtn');
+const statsContent = document.getElementById('statsContent');
+const searchIconBtn = document.getElementById('searchIconBtn');
+const filterPanel = document.getElementById('filterPanel');
+
+
+/**************** 事件绑定 ****************/
+
+// 修复2：搜索按钮逻辑优化（第二次点击清空并收起）
+searchIconBtn.onclick = (e) => {
+    e.stopPropagation(); 
+    const isOpen = filterPanel.classList.contains('show');
+    
+    if (isOpen) {
+        // 如果已经打开，再次点击则：清空筛选、清空输入、关闭面板
+        currentSelectedYear = "";
+        currentSelectedMonth = "";
+        currentImportanceFilter = "";
+        currentSearchQuery = ""; 
+        yearFilterSelect.value = "";
+        monthFilterSelect.value = "";
+        importanceFilterSelect.value = "";
+        searchInput.value = ""; 
+        monthFilterSelect.disabled = true;
+        
+        // 重新渲染（恢复显示所有数据）
+        render();
+
+        // 关闭 UI
+        filterPanel.classList.remove('show');
+        searchIconBtn.classList.remove('active');
+    } else {
+        // 如果是关闭状态，则打开
+        filterPanel.classList.add('show');
+        searchIconBtn.classList.add('active');
+        // 自动聚焦输入框，提升体验
+        searchInput.focus();
+    }
+};
+
+// 点击页面其他地方关闭搜索框
+document.addEventListener('click', (e) => {
+    // 只有当点击不在 searchIconBtn 且不在 filterPanel 内部时才关闭
+    if (!filterPanel.contains(e.target) && e.target !== searchIconBtn && !searchIconBtn.contains(e.target)) {
+        if (filterPanel.classList.contains('show')) {
+            filterPanel.classList.remove('show');
+            searchIconBtn.classList.remove('active');
+        }
+    }
+});
+
+// 防止在panel内部点击时关闭
+filterPanel.onclick = (e) => {
+    e.stopPropagation();
+};
+
+/**************** 复习列表核心逻辑 ****************/
+
+function isGroupFullyReviewed(item, groupIndex) {
+    const indices = reviewGroups[groupIndex];
+    return indices.every(i => item.reviewed[i]);
+}
+
+// 修复3：优化 checkReviewStatus，移除硬编码，统一使用 intervals
+function checkReviewStatus(item, groupIndex, diffDays) {
+    if (isGroupFullyReviewed(item, groupIndex)) {
+        return { due: false, overdue: false };
+    }
+    
+    if (groupIndex === 1 && item.importance === '一般') {
+        return { due: false, overdue: false };
+    }
+
+    let due = false;
+    let overdue = false;
+
+    // 基于 intervals 数组动态计算天数，避免硬编码
+    // intervals 单位是分钟，除以 (24*60) 得到天数
+    const firstStageIndex = reviewGroups[groupIndex][0];
+    const targetMinutes = intervals[firstStageIndex];
+    const targetDays = targetMinutes / (24 * 60); // 1, 2, 4, 7...
+
+    // 动态判断逻辑
+    if (targetDays <= 7) {
+        // 短期记忆：刚好到日子 或 晚了1天都算 due
+        if (diffDays >= targetDays && diffDays < targetDays + 2) due = true;
+        // 晚了2天以上算 overdue
+        if (diffDays >= targetDays + 2) { due = true; overdue = true; }
+    } else {
+        // 长期记忆：放宽范围
+        // 比如 30天后，在 28-45天内都算 due
+        if (diffDays >= targetDays - 2 && diffDays < targetDays + (targetDays * 0.5)) due = true;
+        if (diffDays >= targetDays + (targetDays * 0.5)) { due = true; overdue = true; }
+    }
+
+    return { due, overdue };
+}
+
+function getFilteredData() {
+    let itemsToFilter = [...data];
+
+    // 搜索过滤逻辑
+    if (currentSearchQuery) {
+        itemsToFilter = itemsToFilter.filter(item => {
+            const conceptMatch = item.concept.toLowerCase().includes(currentSearchQuery);
+            // 标签也要转义后再匹配吗？不用，直接匹配原始数据即可
+            const tagMatch = item.tags.some(t => t.toLowerCase().includes(currentSearchQuery));
+            return conceptMatch || tagMatch;
+        });
+    }
+
+    if (currentSelectedYear) {
+        itemsToFilter = itemsToFilter.filter(item =>
+            isValidDate(item.initial) && item.initial.getFullYear() === parseInt(currentSelectedYear)
+        );
+    }
+
+    if (currentSelectedMonth) {
+        itemsToFilter = itemsToFilter.filter(item =>
+            isValidDate(item.initial) && (item.initial.getMonth() + 1) === parseInt(currentSelectedMonth)
+        );
+    }
+
+    if (currentImportanceFilter) {
+        itemsToFilter = itemsToFilter.filter(item => item.importance === currentImportanceFilter);
+    }
+
+    if (scienceMode && !artsMode) {
+        itemsToFilter = itemsToFilter.filter(item => item.tags.some(tag => sciences.includes(tag)));
+    } else if (artsMode && !scienceMode) {
+        itemsToFilter = itemsToFilter.filter(item => item.tags.some(tag => arts.includes(tag)));
+    }
+
+    return itemsToFilter.sort((a,b) => {
+        if (!isValidDate(a.initial) || !isValidDate(b.initial)) return 0;
+        return b.initial.getTime() - a.initial.getTime();
+    });
+}
+
+function listToday(){
+  reviewListTitle.textContent = '今日待复习 (基于范围算法)'; reviewList.innerHTML='';
+  const now = new Date();
+  let foundItems = 0;
+  const dataToFilter = getFilteredData();
+
+  dataToFilter.forEach(item => {
+    if (!isValidDate(item.initial)) return;
+
+    const diffDays = getCalendarDaysDiff(item.initial, now);
+
+    reviewGroups.forEach((group, groupIndex) => {
+        const status = checkReviewStatus(item, groupIndex, diffDays);
+        
+        if (status.due) {
+            const li = document.createElement('li');
+            if (status.overdue) {
+                li.classList.add('overdue-item');
+            }
+
+            const importanceTag = item.importance === '重要' 
+                ? '<span style="color:var(--red);font-weight:bold;">[重要]</span> ' 
+                : '';
+            const stageName = groupDisplayNames[groupIndex];
+            const overdueText = status.overdue ? " <span style='color:var(--red);font-weight:bold;'>(已逾期)</span>" : "";
+            
+            // 使用 escapeHtml 确保列表显示安全
+            li.innerHTML = `
+                <span class="stage-info">➜ ${stageName}</span>${overdueText}<br>
+                <strong>${importanceTag}${escapeHtml(item.concept)}</strong> <span style="color:#666;font-size:0.9em;">(标签: ${renderTags(item.tags)})</span><br>
+                <span style="color:#888;font-size:0.85em;">距初学已过 ${diffDays} 天</span>
+            `;
+            
+            li.onclick = () => {
+                const row = document.querySelector(`tr[data-item-id="${item.id}"]`);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.remove('highlight-row-anim');
+                    void row.offsetWidth; 
+                    row.classList.add('highlight-row-anim');
+                }
+            };
+            
+            reviewList.appendChild(li);
+            foundItems++;
+        }
+    });
+  });
+  
+  if(foundItems === 0) { reviewList.innerHTML='<li>太棒了！今日无待复习项目。</li>'; }
+}
+
+function listNext7Days() {
+  reviewListTitle.textContent = '未来7日复习预告'; reviewList.innerHTML = '';
+  const now = new Date();
+  let foundItems = 0;
+  const dataToFilter = getFilteredData();
+
+  dataToFilter.forEach(item => {
+      if (!isValidDate(item.initial)) return;
+      
+      const currentDiff = getCalendarDaysDiff(item.initial, now);
+      
+      // 标志位，确保每个条目只显示最近的一个未来复习阶段
+      let hasAddedForecast = false;
+
+      reviewGroups.forEach((group, groupIndex) => {
+          if (hasAddedForecast) return; 
+
+          if (isGroupFullyReviewed(item, groupIndex)) return;
+          if (groupIndex === 1 && item.importance === '一般') return;
+
+          // 同样使用动态计算的目标天数
+          const firstStageIndex = reviewGroups[groupIndex][0];
+          const targetDays = intervals[firstStageIndex] / (24 * 60);
+          
+          const remaining = Math.floor(targetDays - currentDiff);
+          
+          // 预测未来7天
+          if (remaining >= 1 && remaining <= 7) {
+             const li = document.createElement('li');
+             const importanceTag = item.importance === '重要' 
+                 ? '<span style="color:var(--red);font-weight:bold;">[重要]</span> ' 
+                 : '';
+             const stageName = groupDisplayNames[groupIndex];
+             
+             li.innerHTML = `
+                <span style="color:var(--teal);font-weight:bold;">➜ ${remaining}天后进入: ${stageName}</span><br>
+                ${importanceTag}${escapeHtml(item.concept)} <span style="color:#888;">(标签: ${renderTags(item.tags)})</span>
+             `;
+
+             li.onclick = () => {
+                 const row = document.querySelector(`tr[data-item-id="${item.id}"]`);
+                 if (row) {
+                     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                     row.classList.remove('highlight-row-anim');
+                     void row.offsetWidth;
+                     row.classList.add('highlight-row-anim');
+                 }
+             };
+
+             reviewList.appendChild(li);
+             foundItems++;
+             hasAddedForecast = true; 
+          }
+      });
+  });
+
+  if (foundItems === 0) { reviewList.innerHTML = '<li>未来7天内无新触发的复习项目。</li>'; }
+}
+
+// ------------------------------------------------------------------------
+
+function refreshModeStyles(){
+  document.body.classList.toggle('science-mode', scienceMode && !artsMode);
+  document.body.classList.toggle('arts-mode', artsMode && !scienceMode);
+  scienceModeBtn.style.fontWeight = scienceMode ? 'bold' : 'normal';
+  artsModeBtn.style.fontWeight = artsMode ? 'bold' : 'normal';
+  const currentReviewListTitle = reviewListTitle.textContent;
+  if (currentReviewListTitle.includes("未来7日")) {
+    listNext7Days();
+  } else {
+    listToday();
+  }
+}
+
+scienceModeBtn.onclick=()=>{
+  scienceMode=!scienceMode;
+  if(scienceMode) artsMode=false;
+  refreshModeStyles();
+  render();
+};
+artsModeBtn.onclick=()=>{
+  artsMode=!artsMode;
+  if(artsMode) scienceMode=false;
+  refreshModeStyles();
+  render();
+};
+
+addBtn.onclick=addItem;
+todayBtn.onclick = () => {
+    listToday();
+    reviewList.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+next7DaysBtn.onclick = () => {
+    listNext7Days();
+    reviewList.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+exportBtn.onclick=exportData; 
+importBtn.onclick=importData; 
+
+scrollToBottomBtn.onclick = () => {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+};
+
+yearFilterSelect.onchange = () => {
+    currentSelectedYear = yearFilterSelect.value;
+    if (currentSelectedYear) {
+        monthFilterSelect.disabled = false;
+    } else {
+        currentSelectedMonth = "";
+        monthFilterSelect.value = "";
+        monthFilterSelect.disabled = true;
+    }
+    render();
+};
+
+monthFilterSelect.onchange = () => {
+    currentSelectedMonth = monthFilterSelect.value;
+    render();
+};
+
+importanceFilterSelect.onchange = () => {
+    currentImportanceFilter = importanceFilterSelect.value;
+    render();
+};
+
+// 搜索输入事件
+searchInput.oninput = () => {
+    currentSearchQuery = searchInput.value.toLowerCase().trim();
+    render();
+};
+
+
+clearFilterBtn.onclick = () => {
+    currentSelectedYear = "";
+    currentSelectedMonth = "";
+    currentImportanceFilter = "";
+    currentSearchQuery = ""; 
+    yearFilterSelect.value = "";
+    monthFilterSelect.value = "";
+    importanceFilterSelect.value = "";
+    searchInput.value = ""; 
+    monthFilterSelect.disabled = true;
+    render();
+};
+
+animationSelect.onchange = () => {
+    currentAnimationEffect = animationSelect.value;
+    save(); 
+};
+
+animationSpeedSelect.onchange = () => {
+    currentAnimationSpeed = animationSpeedSelect.value;
+    save();
+};
+
+// 统计功能事件绑定
+statsBtn.onclick = openStats;
+closeStatsBtn.onclick = closeStats;
+statsModal.onclick = (e) => {
+    if (e.target === statsModal) closeStats();
+};
+
+function addItem(){
+  const conceptText = conceptInput.value.trim();
+  if(!conceptText){ alert('学习内容不能为空！'); conceptInput.focus(); return; }
+  const tagsArray = tagsInput.value.split(/[，,、\s]+/).map(t=>t.trim()).filter(Boolean);
+  const initialDateTime = dateInput.value ? new Date(dateInput.value) : new Date();
+  if (!isValidDate(initialDateTime)) { alert('输入的初始学习日期时间无效，请重新输入。'); dateInput.focus(); return; }
+  const importanceValue = importanceSelect.value;
+  
+  const newItem={
+    id: generateUUID(),
+    concept: conceptText, 
+    initial: initialDateTime, 
+    tags: tagsArray,
+    importance: importanceValue,
+    schedule: computeSchedule(initialDateTime, importanceValue), 
+    reviewed: Array(intervals.length).fill(false),
+    reviewLog: {} // 新增：记录真实复习时间
+  };
+  data.push(newItem);
+  populateYearFilter();
+  save(); render(); clearInputs();
+}
+
+function clearInputs(){
+  conceptInput.value=''; tagsInput.value=''; dateInput.value=isoLocal(new Date()); importanceSelect.value = '一般'; conceptInput.focus();
+}
+
+function populateYearFilter() {
+    const existingYears = new Set();
+    while (yearFilterSelect.options.length > 1) {
+        yearFilterSelect.remove(1);
+    }
+    data.forEach(item => {
+        if (isValidDate(item.initial)) {
+            existingYears.add(item.initial.getFullYear());
+        }
+    });
+    const sortedYears = Array.from(existingYears).sort((a, b) => b - a);
+    sortedYears.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = `${year}年`;
+        yearFilterSelect.appendChild(option);
+    });
+    if (currentSelectedYear && sortedYears.includes(parseInt(currentSelectedYear))) {
+        yearFilterSelect.value = currentSelectedYear;
+    } else {
+        currentSelectedYear = "";
+        yearFilterSelect.value = "";
+        monthFilterSelect.value = "";
+        monthFilterSelect.disabled = true;
+    }
+}
+
+function exportData() {
+  if (data.length === 0) { 
+    alert('没有学习记录可以导出。'); 
+    return; 
+  }
+  const jsonContent = JSON.stringify(data, null, 2);
+  const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+  const link = document.createElement("a");
+  const now = new Date();
+  const timestamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+  const filename = `学习记录_备份_${timestamp}.json`;
+  const objectUrl = URL.createObjectURL(blob);
+  link.setAttribute("href", objectUrl);
+  link.setAttribute("download", filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(objectUrl);
+  showToast('数据已成功导出！');
+}
+
+function importData() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    fileInput.style.display = 'none';
+
+    fileInput.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                const importedData = JSON.parse(event.target.result);
+                
+                // 稍微优化提示语，告知这是完全覆盖
+                if (confirm('注意：此操作将完全【覆盖】当前的所有学习记录！\n\n如果当前有未备份的数据，请先取消并导出备份。\n确定要覆盖吗？')) {
+                    data = revive(importedData);
+                    save();
+                    populateYearFilter();
+                    render();
+                    showToast('数据导入成功！');
+                }
+            } catch (error) {
+                console.error("导入失败:", error);
+                alert('导入失败！请确保文件是之前导出的有效.json备份文件。');
+            }
+        };
+        reader.onerror = function() {
+            alert('读取文件时发生错误。');
+        };
+        reader.readAsText(file);
+    };
+
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    document.body.removeChild(fileInput);
+}
+
+/**************** 统计逻辑 (增强版) ****************/
+function openStats() {
+    selectedStatsTags.clear(); // 每次打开时重置筛选
+    calculateAndRenderStats();
+    statsModal.classList.add('active');
+}
+
+function closeStats() {
+    selectedStatsTags.clear(); // 关闭时重置
+    statsModal.classList.remove('active');
+}
+
+// 多选交互逻辑核心
+let statsClickTimer = null;
+let statsPreventClick = false;
+
+// 单击处理：排他性选择 或 取消当前选择
+function handleTagClick(tag) {
+    // 【修改点】点击等待时间调整为 200 毫秒
+    statsClickTimer = setTimeout(() => {
+        if (!statsPreventClick) {
+            // 执行单击逻辑
+            if (selectedStatsTags.has(tag)) {
+                // 如果已经选中，则取消该选中（如果在多选状态下，相当于移除这一个）
+                selectedStatsTags.delete(tag);
+                // 此时如果是单选模式下点击已选中的，就变成了全不选，这符合预期
+            } else {
+                // 如果没选中，则进行排他性选择（清空其他，只选这个）
+                selectedStatsTags.clear();
+                selectedStatsTags.add(tag);
+            }
+            refreshStatsUI();
+        }
+        statsPreventClick = false;
+    }, 200); 
+}
+
+// 双击处理：追加选择（多选）
+function handleTagDblClick(tag) {
+    clearTimeout(statsClickTimer);
+    statsPreventClick = true;
+    
+    // 执行双击逻辑
+    selectedStatsTags.add(tag); // 只是添加到集合中，不清除其他的
+    refreshStatsUI();
+}
+
+function refreshStatsUI() {
+    // 触发重绘动画
+    const cards = document.querySelectorAll('.stat-card');
+    cards.forEach(card => {
+        card.classList.remove('updating');
+        void card.offsetWidth; // 触发重绘
+        card.classList.add('updating');
+    });
+    calculateAndRenderStats();
+}
+
+// 新增：热力图日期工具
+function getHeatmapDateRange() {
+    const today = new Date();
+    today.setHours(0,0,0,0); // 标准化为午夜，避免跨天差异
+    
+    // 往前 6 个月作为起点 (大约 26 周)
+    const startDate = new Date(today);
+    startDate.setMonth(today.getMonth() - 6);
+    // 调整到那周的周日 (Grid布局从周日开始)
+    startDate.setDate(startDate.getDate() - startDate.getDay());
+
+    // 往后 2 周
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() + 14);
+    // 调整到那周的周六
+    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+
+    const dates = [];
+    let current = new Date(startDate);
+    while (current <= endDate) {
+        dates.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+    }
+    return dates;
+}
+
+function formatDateKey(date) {
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+}
+
+function calculateAndRenderStats() {
+    if (data.length === 0) {
+        statsContent.innerHTML = '<div style="text-align:center;color:#888;padding:20px;">暂无数据，请添加学习项后再查看统计。</div>';
+        return;
+    }
+
+    // 1. 全局统计
+    const globalTagCounts = {};
+    data.forEach(item => {
+        if (item.tags && item.tags.length > 0) {
+            item.tags.forEach(tag => {
+                globalTagCounts[tag] = (globalTagCounts[tag] || 0) + 1;
+            });
+        } else {
+            globalTagCounts['无标签'] = (globalTagCounts['无标签'] || 0) + 1;
+        }
+    });
+    const sortedTags = Object.entries(globalTagCounts).sort((a, b) => b[1] - a[1]);
+
+    // 2. 根据 selectedStatsTags 筛选数据
+    let filteredDataForStats = data;
+    if (selectedStatsTags.size > 0) {
+        filteredDataForStats = data.filter(item => {
+            const itemTags = (item.tags && item.tags.length > 0) ? item.tags : ['无标签'];
+            return itemTags.some(t => selectedStatsTags.has(t));
+        });
+    }
+
+    // 3. 计算常规统计数据
+    let totalItems = filteredDataForStats.length;
+    let totalReviewPoints = 0;
+    let completedReviewPoints = 0;
+    let overdueCount = 0; 
+    const now = new Date(); 
+
+    const stageTotalCounts = Array(7).fill(0);
+    const stageCompletedCounts = Array(7).fill(0);
+    const forecastCounts = Array(7).fill(0); // 柱状图用
+    
+    // 热力图数据准备 (map: dateKey -> count)
+    const heatmapActivityData = {}; // 过去：实际复习数 (根据 reviewLog)
+    const heatmapWorkloadData = {}; // 未来：计划复习数 (根据 schedule)
+
+    // A. 填充热力图数据 (修正版：按 Group 统计，完全遍历所有打卡记录)
+    filteredDataForStats.forEach(item => {
+        // 1. 统计 Activity (过去实际点击)
+        if (item.reviewLog) {
+            reviewGroups.forEach((group, groupIndex) => {
+                // 收集该组内所有有效的打卡日期（去重）
+                // 这样如果同一组在不同天都有打卡，每一天都会被统计到
+                // 如果同一组在同一天多次打卡，只算一次
+                const uniqueDaysForGroup = new Set();
+                
+                group.forEach(idx => {
+                    const logTime = item.reviewLog[idx];
+                    if (logTime) {
+                        const d = new Date(logTime);
+                        if (isValidDate(d)) {
+                            uniqueDaysForGroup.add(formatDateKey(d));
+                        }
+                    }
+                });
+
+                // 将该组贡献的所有活跃天数加到全局热力图中
+                uniqueDaysForGroup.forEach(dateKey => {
+                    heatmapActivityData[dateKey] = (heatmapActivityData[dateKey] || 0) + 1;
+                });
+            });
+        }
+
+        // 2. 统计 Workload (未来计划)
+        // 同样以 Group 为单位。如果 Group 整体未完成，取 Group 的起始日期作为计划日期。
+        reviewGroups.forEach((group, groupIndex) => {
+            if (groupIndex === 1 && item.importance === '一般') return;
+            
+            // 检查整个 Group 是否已完成
+            const isDone = group.every(i => i < item.reviewed.length && item.reviewed[i]);
+            
+            if (!isDone) {
+                // 查找该 Group 中第一个在这个时刻之后的时间点
+                let targetDate = null;
+                for (const idx of group) {
+                    if (item.schedule[idx] && item.schedule[idx] > now) {
+                        targetDate = item.schedule[idx];
+                        break; 
+                    }
+                }
+                
+                if (targetDate && isValidDate(targetDate)) {
+                    const key = formatDateKey(targetDate);
+                    heatmapWorkloadData[key] = (heatmapWorkloadData[key] || 0) + 1;
+                }
+            }
+        });
+    });
+
+    const forecastDates = Array(7).fill(0).map((_, i) => {
+        const d = new Date(now);
+        d.setDate(now.getDate() + i + 1);
+        return d; 
+    });
+
+    filteredDataForStats.forEach(item => {
+        const groupsToCheck = reviewGroups.length;
+        let itemTotalPoints = groupsToCheck;
+        let itemCompletedPoints = 0;
+        
+        if (item.importance === '一般') {
+            itemTotalPoints -= 1; 
+        }
+
+        reviewGroups.forEach((group, index) => {
+             if (item.importance === '一般' && index === 1) {
+             } else {
+                 stageTotalCounts[index]++;
+                 const isDone = group.every(i => i < item.reviewed.length && item.reviewed[i]);
+                 if (isDone) {
+                     itemCompletedPoints++;
+                     stageCompletedCounts[index]++;
+                 } else {
+                     group.forEach(subIndex => {
+                         const scheduleDate = item.schedule[subIndex];
+                         if (scheduleDate && isValidDate(scheduleDate) && !item.reviewed[subIndex]) {
+                             forecastDates.forEach((fDay, fIndex) => {
+                                 if (scheduleDate.getDate() === fDay.getDate() && 
+                                     scheduleDate.getMonth() === fDay.getMonth() && 
+                                     scheduleDate.getFullYear() === fDay.getFullYear()) {
+                                     forecastCounts[fIndex]++;
+                                 }
+                             });
+                         }
+                     });
+                 }
+             }
+        });
+
+        totalReviewPoints += itemTotalPoints;
+        completedReviewPoints += itemCompletedPoints;
+
+        if (item.initial && isValidDate(item.initial)) {
+             const diffDays = getCalendarDaysDiff(item.initial, now);
+             reviewGroups.forEach((group, index) => {
+                 const status = checkReviewStatus(item, index, diffDays);
+                 if (status.overdue) {
+                     overdueCount++;
+                 }
+             });
+        }
+    });
+
+    const completionRate = totalReviewPoints > 0 ? Math.round((completedReviewPoints / totalReviewPoints) * 100) : 0;
+    
+    let filterSuffix = '';
+    if (selectedStatsTags.size > 0) {
+        filterSuffix = Array.from(selectedStatsTags).map(t => 
+            `<span style="font-size:14px;color:var(--blue);background:rgba(10,132,255,0.1);padding:2px 8px;border-radius:10px;margin-left:5px;">${escapeHtml(t)}</span>`
+        ).join('');
+        if (selectedStatsTags.size > 1) {
+             filterSuffix += `<span style="font-size:12px;color:#999;margin-left:5px;">(组合)</span>`;
+        }
+    }
+
+
+    // 4. 生成 HTML
+    let html = `
+        <div class="stats-grid">
+            <div class="stat-card updating">
+                <div class="stat-value">${totalItems}</div>
+                <div class="stat-label">总学习条目${selectedStatsTags.size > 0 ? '(筛选)' : ''}</div>
+            </div>
+            <div class="stat-card updating">
+                <div class="stat-value">${completedReviewPoints}</div>
+                <div class="stat-label">累计复习完成次</div>
+            </div>
+            <div class="stat-card updating">
+                <div class="stat-value" style="color:var(--red)">${overdueCount}</div>
+                <div class="stat-label">逾期任务</div>
+            </div>
+            <div class="stat-card updating">
+                <div class="stat-value">${completionRate}%</div>
+                <div class="stat-label">总体复习进度</div>
+            </div>
+        </div>
+
+        <!-- 热力图区域 -->
+        <div class="stats-section-header">学习活力热力图 (Activity & Workload)</div>
+        <div style="font-size:12px; color:#666; margin-bottom:10px; display:flex; justify-content:space-between;">
+            <span>绿色: 当天实际复习数 (越深越勤奋)</span>
+            <span>灰色: 未来计划任务数 (越深越繁重)</span>
+        </div>
+        <div class="heatmap-container">
+            <div class="heatmap-grid">
+    `;
+
+    // 渲染热力图网格
+    const heatmapDates = getHeatmapDateRange();
+    const todayStr = formatDateKey(new Date());
+    
+    heatmapDates.forEach(date => {
+        const key = formatDateKey(date);
+        const isPastOrToday = date <= now;
+        
+        let colorClass = '';
+        let title = `${key}\n`;
+        let count = 0;
+
+        if (isPastOrToday) {
+            // 过去模式：使用 Activity Data (绿色)
+            count = heatmapActivityData[key] || 0;
+            title += `完成复习: ${count} 次`;
+            if (count === 0) colorClass = 'color-scale-green-0';
+            else if (count <= 2) colorClass = 'color-scale-green-1';
+            else if (count <= 4) colorClass = 'color-scale-green-2';
+            else if (count <= 6) colorClass = 'color-scale-green-3';
+            else colorClass = 'color-scale-green-4';
+        } else {
+            // 未来模式：使用 Workload Data (灰色)
+            count = heatmapWorkloadData[key] || 0;
+            title += `计划复习: ${count} 项`;
+            if (count === 0) colorClass = 'color-scale-gray-0';
+            else if (count <= 2) colorClass = 'color-scale-gray-1';
+            else if (count <= 4) colorClass = 'color-scale-gray-2';
+            else if (count <= 6) colorClass = 'color-scale-gray-3';
+            else colorClass = 'color-scale-gray-4';
+        }
+
+        // 今天加一个特殊边框或标识? 其实颜色分界已经很明显了
+        // 如果是今天，额外加一点 border
+        let style = "";
+        if (key === todayStr) {
+            style = "border: 1px solid var(--blue);";
+            title += " (今天)";
+        }
+
+        html += `<div class="heatmap-cell ${colorClass}" title="${title}" style="${style}"></div>`;
+    });
+
+    html += `
+            </div>
+        </div>
+        <div class="heatmap-legend">
+            <span>Less</span>
+            <span class="legend-item color-scale-green-0"></span>
+            <span class="legend-item color-scale-green-2"></span>
+            <span class="legend-item color-scale-green-4"></span>
+            <span>More</span>
+        </div>
+
+
+        <div class="stats-section-header">未来7日复习量预测</div>
+        <div class="forecast-chart">
+            ${forecastCounts.map((count, i) => {
+                const dayLabel = `+${i+1}天`;
+                const maxVal = Math.max(...forecastCounts, 5); // 至少为5
+                const height = Math.max((count / maxVal) * 80, 2); // 最小2px
+                return `
+                <div class="forecast-bar-container">
+                    <div class="forecast-value">${count > 0 ? count : ''}</div>
+                    <div class="forecast-bar" style="height: ${height}%; opacity: ${count > 0 ? 1 : 0.3}"></div>
+                    <div class="forecast-label">${dayLabel}</div>
+                </div>`;
+            }).join('')}
+        </div>
+
+        <div class="stats-section-header">阶段复习留存率</div>
+        <div class="chart-container">
+            ${groupDisplayNames.map((name, i) => {
+                const total = stageTotalCounts[i];
+                const completed = stageCompletedCounts[i];
+                const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+                let color = 'var(--green)';
+                if(rate < 50) color = 'var(--red)';
+                else if(rate < 80) color = 'var(--orange)';
+                
+                return `
+                <div class="bar-row" style="cursor:default;">
+                    <div class="bar-label" style="width:60px;">${name}</div>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: ${rate}%; background: ${color};"></div>
+                    </div>
+                    <div class="bar-value" style="width:50px;text-align:right;">${rate}%</div>
+                </div>`;
+            }).join('')}
+        </div>
+
+        <div class="stats-section-title">
+            <div style="display:flex;align-items:center;flex-wrap:wrap;">
+                <span>学科/标签分布</span>${filterSuffix}
+            </div>
+            <span style="font-weight:normal;font-size:11px;color:#888;">单击替换 / 双击多选</span>
+        </div>
+        <div class="chart-container">
+    `;
+
+    // 绘制标签条形图
+    const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
+    sortedTags.slice(0, 10).forEach(([tag, count]) => {
+        const percent = (count / maxTagCount) * 100;
+        let color = '#8e8e93'; 
+        if (colorSubjects[tag]) {
+             const subjectVarMap = {
+                 '物理': 'var(--phys)', '化学': 'var(--chem)', '数学': 'var(--math)', '生物': 'var(--bio)',
+                 '语文': 'var(--chi)', '英语': 'var(--eng)', '政治': 'var(--poli)', '历史': 'var(--hist)', '地理': 'var(--geo)'
+             };
+             if(subjectVarMap[tag]) color = subjectVarMap[tag];
+             else color = 'var(--blue)';
+        } else {
+             color = 'var(--blue)';
+        }
+
+        const isSelected = selectedStatsTags.has(tag);
+        const isAnySelected = (selectedStatsTags.size > 0);
+        
+        let rowClass = 'bar-row';
+        if (isSelected) rowClass += ' active-filter';
+        if (isAnySelected && !isSelected) rowClass += ' dimmed';
+        
+        const safeTagStr = tag.replace(/'/g, "\\'"); 
+
+        html += `
+            <div class="${rowClass}" 
+                 onclick="handleTagClick('${safeTagStr}')" 
+                 ondblclick="handleTagDblClick('${safeTagStr}')"
+                 title="${isSelected ? '单击移除，保留其他' : '单击选中(替换)，双击选中(追加)'}">
+                <div class="bar-label" title="${escapeHtml(tag)}">${escapeHtml(tag)}</div>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width: ${percent}%; background: ${color};"></div>
+                </div>
+                <div class="bar-value">${count}</div>
+            </div>
+        `;
+    });
+    html += `</div>`;
+    
+    statsContent.innerHTML = html;
+}
+
+
+function render(){
+  const cellToAnimate = lastAnimatedCell;
+  lastAnimatedCell = null;
+    
+  tableBody.innerHTML='';
+  const rowsToRender = getFilteredData();
+  if (rowsToRender.length === 0) {
+      const tr = tableBody.insertRow(); const td = tr.insertCell();
+      td.colSpan = stageNames.length + 5;
+      
+      // 增加搜索反馈 (escapeHtml 防止 XSS)
+      if (currentSearchQuery) {
+          td.innerHTML = `<span style="color:#666">没有找到包含 “<b style="color:var(--blue)">${escapeHtml(currentSearchQuery)}</b>” 的学习记录。</span><br><span style="font-size:12px;color:#999">请尝试清除筛选或使用其他关键词。</span>`;
+      } else {
+          td.textContent = "没有符合条件的学习记录。尝试添加新纪录或更改筛选条件。";
+      }
+      
+      td.style.textAlign = "center"; td.style.padding = "30px"; td.style.color = "#555";
+      const currentReviewListTitle = reviewListTitle.textContent;
+      if (currentReviewListTitle.includes("未来7日")) {
+          listNext7Days();
+      } else {
+          listToday();
+      }
+      return;
+  }
+  rowsToRender.forEach((item, index)=>{
+    const tr=document.createElement('tr'); tr.dataset.itemId = item.id;
+    tr.insertAdjacentHTML('beforeend',`<td>${index+1}</td>`);
+    
+    // 修复：使用 escapeHtml
+    const tdConcept=document.createElement('td'); tdConcept.textContent=item.concept;
+    tdConcept.title='双击编辑学习内容'; tdConcept.style.cursor='pointer';
+    tdConcept.ondblclick=(e)=>editCell(e.currentTarget, item, 'concept'); tr.appendChild(tdConcept);
+    
+    const tdImportance = document.createElement('td');
+    tdImportance.innerHTML = renderImportance(item.importance);
+    tdImportance.title = '双击编辑重要性';
+    tdImportance.style.cursor = 'pointer';
+    tdImportance.ondblclick = (e) => editCell(e.currentTarget, item, 'importance');
+    tr.appendChild(tdImportance);
+
+    const tdTags=document.createElement('td'); tdTags.innerHTML=renderTags(item.tags);
+    tdTags.title='双击编辑标签'; tdTags.style.cursor='pointer';
+    tdTags.ondblclick=(e)=>editCell(e.currentTarget, item, 'tags'); tr.appendChild(tdTags);
+
+    // 修复4：完善日期修改逻辑（提示重置进度）
+    const tdInitial = document.createElement('td');
+    tdInitial.textContent = fmtInit(item.initial);
+    tdInitial.title = '双击修改初学时间';
+    tdInitial.style.cursor = 'pointer';
+    tdInitial.ondblclick = (e) => {
+        const currentVal = isoLocal(item.initial);
+        const input = document.createElement('input');
+        input.type = 'datetime-local';
+        input.value = currentVal;
+        input.style.fontSize = '12px';
+        // 阻止事件冒泡，防止意外
+        input.onclick = (ev) => ev.stopPropagation(); 
+        
+        const saveDate = () => {
+            const newDate = new Date(input.value);
+            if (isValidDate(newDate)) {
+                // 检查日期是否真的变了
+                if (newDate.getTime() !== item.initial.getTime()) {
+                    item.initial = newDate;
+                    item.schedule = computeSchedule(item.initial, item.importance);
+                    
+                    // 询问是否重置打钩状态
+                    if (confirm("你修改了初学日期，这可能会导致现有的复习进度不再准确。\n\n是否要【重置】这条记录的所有打钩状态？\n(推荐选'确定'以重新开始计算复习节点)")) {
+                        item.reviewed = Array(intervals.length).fill(false);
+                        item.reviewLog = {}; // 重置日期也重置日志
+                    }
+                    
+                    save();
+                    render();
+                } else {
+                    // 日期没变，仅仅是失焦
+                    render();
+                }
+            } else {
+                render(); // 取消或无效则还原
+            }
+        };
+
+        input.onblur = saveDate;
+        input.onkeydown = (ev) => { if(ev.key === 'Enter') saveDate(); };
+        
+        e.currentTarget.innerHTML = '';
+        e.currentTarget.appendChild(input);
+        input.focus();
+    };
+    tr.appendChild(tdInitial);
+    
+    let processedStageIndex = 0;
+    while (processedStageIndex < intervals.length) {
+        const group = reviewGroups.find(g => g.includes(processedStageIndex));
+        if (!group) {
+            processedStageIndex++;
+            continue;
+        }
+        
+        const groupSize = group.length;
+        const groupIndex = reviewGroups.findIndex(g => g.includes(processedStageIndex));
+        
+        if (groupIndex === 1 && item.importance === '一般') {
+            const td = document.createElement('td');
+            td.colSpan = group.length;
+            td.innerHTML = '—'; 
+
+            const isPrevGroupReviewed = reviewGroups[0].every(i => i < item.reviewed.length && item.reviewed[i]);
+            const isNextGroupReviewed = reviewGroups[2].every(i => i < item.reviewed.length && item.reviewed[i]);
+
+            if (isPrevGroupReviewed && isNextGroupReviewed) {
+                td.style.backgroundColor = groupColors[groupIndex];
+                td.style.color = '#fff';
+                td.style.fontWeight = '700';
+            } else {
+                td.style.color = '#ccc';
+                td.style.fontWeight = '600';
+            }
+            
+            const lastIndexOfGroup = group[group.length - 1];
+            if ([1, 2, 4, 6, 7, 8, 9].includes(lastIndexOfGroup)) {
+                td.classList.add('group-separator');
+            }
+            tr.appendChild(td);
+            processedStageIndex += group.length;
+            continue;
+        }
+        
+        const isGroupReviewed = group.every(i => i < item.reviewed.length && item.reviewed[i]);
+
+        if (isGroupReviewed) {
+            const td = document.createElement('td');
+            td.colSpan = groupSize;
+            td.textContent = '已复习';
+            td.style.fontWeight = '700';
+            td.style.color = '#fff';
+            const color = groupIndex !== -1 ? groupColors[groupIndex] : '#ccc';
+            td.style.backgroundColor = color;
+            td.classList.add('clickable-cell');
+            
+            if (groupSize === 1) {
+                if (groupIndex === 1) {
+                    td.style.minWidth = '110px';
+                } else {
+                    td.style.minWidth = '120px';
+                }
+            }
+
+            if (cellToAnimate && cellToAnimate.itemId === item.id && cellToAnimate.groupIndex === groupIndex) {
+                if(currentAnimationEffect !== 'none') {
+                    td.style.setProperty('--anim-duration', currentAnimationSpeed); 
+                    td.classList.add(currentAnimationEffect);
+                }
+            }
+
+            const lastIndexOfGroup = group[group.length - 1];
+            if ([1, 2, 4, 6, 7, 8, 9].includes(lastIndexOfGroup)) {
+                td.classList.add('group-separator');
+            }
+            
+            td.onclick = () => {
+                // 取消复习时，需要删除日志吗？
+                // 逻辑：如果取消了，那这次复习就不算数了。删除相关日志。
+                group.forEach(i => { 
+                    if (i < item.reviewed.length) {
+                        item.reviewed[i] = false;
+                        if (item.reviewLog) delete item.reviewLog[i];
+                    } 
+                });
+                save();
+                render();
+            };
+            tr.appendChild(td);
+        } else {
+            group.forEach(i => {
+                const td = document.createElement('td');
+                td.classList.add('clickable-cell');
+                
+                if (groupSize === 1) {
+                    if (groupIndex === 1) {
+                        td.style.minWidth = '110px';
+                    } else {
+                        td.style.minWidth = '120px';
+                    }
+                }
+
+                if (group.indexOf(i) === group.length - 1) {
+                    if ([1, 2, 4, 6, 7, 8, 9].includes(i)) {
+                        td.classList.add('group-separator');
+                    }
+                }
+
+                const dateOfReview = item.schedule && item.schedule[i] ? item.schedule[i] : null; 
+                
+                if (!dateOfReview) {
+                    td.innerHTML = "?";
+                } else if(groupIndex === 1) { 
+                    const day3 = new Date(item.initial.getTime() + 3 * 24 * 60 * 60000); 
+                    const day4 = dateOfReview; 
+                    if (isValidDate(day3) && isValidDate(day4)) {
+                        td.innerHTML = fmtStageCompactRange(day3, day4);
+                    } else {
+                        td.innerHTML = "日期无效";
+                    }
+                }
+                else if(groupIndex <= 3) { 
+                    td.innerHTML = fmtStageCompact(dateOfReview);
+                } else {
+                    td.textContent = fmtStage(dateOfReview, i, item.initial.getFullYear());
+                }
+                
+                td.onclick = () => {
+                    const wasAlreadyReviewed = group.every(idx => item.reviewed[idx]);
+                    if (!wasAlreadyReviewed) {
+                        triggerCelebration(groupIndex);
+                    }
+                    
+                    lastAnimatedCell = { itemId: item.id, groupIndex: groupIndex };
+
+                    // 记录当前时间作为复习时间
+                    const nowISO = new Date().toISOString();
+
+                    group.forEach(indexInGroup => {
+                        if (indexInGroup < item.reviewed.length) {
+                            item.reviewed[indexInGroup] = true;
+                            // 记录日志：哪个阶段 -> 什么时候复习的
+                            if (!item.reviewLog) item.reviewLog = {};
+                            item.reviewLog[indexInGroup] = nowISO;
+                        }
+                    });
+
+                    save();
+                    render();
+                };
+                tr.appendChild(td);
+            });
+        }
+        processedStageIndex += groupSize;
+    }
+
+    const deleteCell=document.createElement('td');
+    deleteCell.innerHTML='<span class="deleteBtn" title="删除此条记录">✕</span>';
+    deleteCell.onclick=()=>{
+      // escapeHtml 防止提示框中出现奇怪代码
+      if(confirm(`确定要删除学习内容：“${item.concept}”吗？此操作无法撤销。`)){
+        data=data.filter(x=>x.id !== item.id);
+        populateYearFilter();
+        save(); render();
+      }
+    };
+    tr.appendChild(deleteCell); tableBody.appendChild(tr);
+  });
+  const currentReviewListTitle = reviewListTitle.textContent;
+  if (currentReviewListTitle.includes("未来7日")) {
+      listNext7Days();
+  } else {
+      listToday();
+  }
+}
+
+// 修复：使用 escapeHtml 安全渲染标签
+function renderTags(tagsArray){
+  if (!Array.isArray(tagsArray) || tagsArray.length === 0) { return '<span class="label label-gray">无标签</span>'; }
+  return tagsArray.map(tag=>{
+    const tagName = String(tag || '').trim(); if (!tagName) return '';
+    const safeTagName = escapeHtml(tagName); // XSS 防护
+    const cssClassSuffix = colorSubjects[tagName] || 'gray';
+    const labelClass = `label label-${cssClassSuffix}`;
+    return`<span class="${labelClass}">${safeTagName}</span>`;
+  }).join('');
+}
+
+function renderImportance(importance) {
+    const className = importance === '重要' ? 'label-重要' : 'label-一般';
+    return `<span class="label ${className}">${importance}</span>`;
+}
+
+
+/**************** 编辑函数 ****************/
+function editCell(cell, item, propertyKey) {
+    if (propertyKey === 'importance') {
+        const select = document.createElement('select');
+        select.innerHTML = `
+            <option value="一般">一般</option>
+            <option value="重要">重要</option>
+        `;
+        select.value = item.importance;
+        cell.innerHTML = '';
+        cell.appendChild(select);
+        select.focus();
+
+        const saveEdit = () => {
+            const newImportance = select.value;
+            item.importance = newImportance;
+            
+            item.schedule = computeSchedule(item.initial, newImportance);
+            if (newImportance === '一般') {
+                item.reviewed[2] = false; 
+                // 同时移除可能存在的日志
+                if (item.reviewLog) delete item.reviewLog[2];
+            }
+            
+            save();
+            render();
+        };
+
+        select.onblur = saveEdit;
+        select.onkeydown = (e) => {
+            if (e.key === 'Enter') select.blur();
+            else if (e.key === 'Escape') { render(); }
+        };
+        return;
+    }
+    
+    const originalValue = propertyKey === 'tags' ? item.tags.join(', ') : item[propertyKey];
+    const input = document.createElement('input'); input.type = 'text'; input.value = originalValue;
+    input.style.width = '95%'; input.style.padding = '5px'; input.style.boxSizing = 'border-box'; input.style.fontSize = 'inherit';
+    cell.innerHTML = ''; cell.appendChild(input); input.focus(); input.select();
+    const saveEdit = () => {
+        const newValue = input.value.trim();
+        if (propertyKey === 'tags') {
+            item.tags = newValue.split(/[，,、\s]+/).map(t => t.trim()).filter(Boolean);
+        } else {
+            if (newValue || propertyKey !== 'concept') { item[propertyKey] = newValue; }
+            else if (propertyKey === 'concept' && !newValue) { alert("学习内容不能为空。"); }
+        }
+        save(); render();
+    };
+    input.onblur = saveEdit;
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') input.blur();
+        else if (e.key === 'Escape') { input.blur(); render(); }
+    };
+}
+
+
+/**************** 初始化 ****************/
+(function init(){
+  if(!dateInput.value) dateInput.value = isoLocal(new Date());
+
+  const savedAnimation = localStorage.getItem('animationPreference');
+  if (savedAnimation) {
+      currentAnimationEffect = savedAnimation;
+      animationSelect.value = savedAnimation;
+  }
+  const savedSpeed = localStorage.getItem('animationSpeedPreference');
+    if (savedSpeed) {
+      currentAnimationSpeed = savedSpeed;
+      animationSpeedSelect.value = savedSpeed;
+  }
+  
+  populateYearFilter();
+  monthFilterSelect.disabled = true;
+  refreshModeStyles();
+  render();
+  conceptInput.focus();
+})();
+</script>
+</body>
+</html>

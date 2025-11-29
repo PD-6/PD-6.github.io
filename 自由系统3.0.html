@@ -1,0 +1,2912 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Morning Routine Dashboard (Fireworks Edition)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js Zoom Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Canvas Confetti (烟花特效库) -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+                    },
+                    colors: {
+                        ios: {
+                            text: '#1D1D1F',
+                            subtext: '#86868B',
+                            blue: '#0071E3',
+                        }
+                    },
+                    animation: {
+                        'blob': 'blob 10s infinite',
+                        'fade-in': 'fadeIn 0.6s ease-out forwards',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #F5F5F7;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #1D1D1F;
+            overflow-x: hidden;
+            transition: background-color 0.5s ease;
+        }
+
+        /* 布局容器过渡动画 */
+        #app-wrapper {
+            position: relative;
+        }
+        
+        /* 容器本身也需要过渡动画 */
+        #dashboard-1-container, #dashboard-2-container, #dashboard-3-container {
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform, width;
+        }
+
+        /* 拖拽时的样式 */
+        .dashboard-container-dragging {
+            transition: none !important;
+            z-index: 9999 !important;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.5) inset;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+        }
+
+        .heatmap-grid {
+            display: grid;
+            grid-template-rows: repeat(7, 1fr);
+            grid-auto-flow: column;
+            gap: 4px;
+            padding-bottom: 4px;
+        }
+
+        .heatmap-cell {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            background-color: rgba(0,0,0,0.04);
+            transition: all 0.2s ease;
+            touch-action: none; /* 允许长按拖拽 */
+        }
+        .heatmap-cell:hover { transform: scale(1.4); z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        /* --- 温故系统专属热力图样式 (完全复刻) --- */
+        /* 过去 Activity 颜色 (绿色) */
+        .color-scale-green-0 { background-color: #ebedf0 !important; }
+        .color-scale-green-1 { background-color: #9be9a8 !important; }
+        .color-scale-green-2 { background-color: #40c463 !important; }
+        .color-scale-green-3 { background-color: #30a14e !important; }
+        .color-scale-green-4 { background-color: #216e39 !important; }
+
+        /* 未来 Workload 颜色 (灰色/蓝色) - 对应温故系统灰色块 */
+        .color-scale-gray-0 { background-color: #ebedf0 !important; }
+        .color-scale-gray-1 { background-color: #d1d5db !important; }
+        .color-scale-gray-2 { background-color: #9ca3af !important; }
+        .color-scale-gray-3 { background-color: #6b7280 !important; }
+        .color-scale-gray-4 { background-color: #374151 !important; }
+        /* -------------------------------------- */
+
+        /* 拖拽删除时的幽灵样式 */
+        .ghost-cell {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            z-index: 10000;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            opacity: 0.8;
+            transition: transform 0.1s;
+        }
+        
+        /* 垃圾桶高亮 */
+        .trash-highlight {
+            color: #EF4444 !important; /* text-red-500 */
+            transform: scale(1.2);
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+
+        .btn-ios { transition: transform 0.1s ease, background-color 0.2s ease; }
+        .btn-ios:active { transform: scale(0.98); }
+
+        .segmented-control {
+            background: rgba(118, 118, 128, 0.12);
+            padding: 2px;
+            border-radius: 8px;
+            display: inline-flex;
+            position: relative;
+            user-select: none;
+            height: 28px;
+            align-items: center;
+        }
+
+        .segment-btn {
+            padding: 0 10px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 500;
+            border-radius: 6px;
+            color: #1D1D1F;
+            position: relative;
+            z-index: 2;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        
+        .segment-active-bg {
+            position: absolute;
+            height: calc(100% - 4px);
+            top: 2px;
+            left: 2px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), width 0.3s ease;
+            z-index: 1;
+        }
+
+        /* --- 滚动条样式修改 --- */
+        .custom-scroll::-webkit-scrollbar { 
+            height: 6px; 
+            width: 6px; 
+        }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+
+        .ambient-blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.5;
+            z-index: -1;
+            animation: blob 20s infinite alternate;
+        }
+
+        /* Mode classes applied to specific dashboard instance root */
+        .dashboard-root.mode-compact .right-column-ref { display: none !important; }
+        .dashboard-root.mode-compact .left-column-ref { width: 100%; max-width: 100%; }
+        .dashboard-root.mode-compact {
+            max-width: 400px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            padding: 2rem !important; /* p-8 */
+            align-items: center !important;
+        }
+        
+        /* Default Expanded Style Override */
+        .dashboard-root:not(.mode-compact) {
+            max-width: 1024px; /* max-w-5xl */
+            display: grid;
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            gap: 3rem; /* gap-12 */
+        }
+        @media (max-width: 768px) {
+            .dashboard-root:not(.mode-compact) {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+        }
+
+        canvas { cursor: grab; } canvas:active { cursor: grabbing; }
+        
+        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+        
+    </style>
+</head>
+<body class="min-h-screen p-8 relative transition-all duration-500 overflow-y-auto">
+
+    <div class="ambient-blob bg-blue-200 w-[500px] h-[500px] top-0 left-0 opacity-40 mix-blend-multiply"></div>
+    <div class="ambient-blob bg-purple-200 w-[500px] h-[500px] bottom-0 right-0 opacity-40 mix-blend-multiply animation-delay-2000"></div>
+    <div class="ambient-blob bg-green-100 w-[400px] h-[400px] top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-30 mix-blend-multiply animation-delay-4000"></div>
+
+    <!-- Main Wrapper that controls the layout (Vertical vs Horizontal) -->
+    <div id="app-wrapper" class="w-full flex flex-wrap items-start justify-center gap-6 min-h-[90vh] content-center p-4">
+        <!-- Dashboard 1 Container -->
+        <div id="dashboard-1-container" class="w-full flex justify-center transform transition-none"></div>
+        
+        <!-- Dashboard 2 Container -->
+        <div id="dashboard-2-container" class="w-full flex justify-center transform transition-none"></div>
+
+        <!-- Dashboard 3 Container -->
+        <div id="dashboard-3-container" class="w-full flex justify-center transform transition-none"></div>
+    </div>
+
+    <!-- TEMPLATE: Hidden HTML structure for the dashboard -->
+    <template id="dashboard-template">
+        <main class="dashboard-root w-full glass-panel rounded-[40px] p-8 md:p-10 relative overflow-hidden animate-fade-in transition-all duration-500 ease-spring">
+            
+            <!-- Left Column -->
+            <div class="left-column-ref md:col-span-5 flex flex-col justify-between h-full relative z-10 transition-all duration-500 w-full">
+                <header class="flex justify-between items-start w-full">
+                    <div class="flex flex-col">
+                        <span class="text-[11px] font-semibold tracking-widest text-ios-subtext uppercase current-date-ref">LOADING...</span>
+                        <h1 class="text-3xl font-bold tracking-tight text-ios-text mt-1 dashboard-title-ref">Good Morning</h1>
+                    </div>
+                    <div class="flex items-center gap-1 -mr-2">
+                        <button class="btn-toggle-view group p-2 rounded-full hover:bg-black/5 transition-colors cursor-pointer" title="切换视图 (长按排序)">
+                            <i class="icon-toggle ph ph-arrows-in-simple text-xl text-ios-subtext group-hover:text-ios-blue transition-colors"></i>
+                        </button>
+                        <button class="btn-clear-data group p-2 rounded-full hover:bg-black/5 transition-colors" title="清除所有数据 (拖拽热力块到此删除)">
+                            <i class="ph ph-trash text-xl text-ios-subtext group-hover:text-red-500 transition-colors"></i>
+                        </button>
+                    </div>
+                </header>
+
+                <div class="flex flex-col items-center justify-center flex-grow py-8 transition-all duration-500 w-full main-action-area">
+                    <div class="relative mb-8 text-center">
+                        <div class="clock-display-ref text-[6.5rem] leading-none font-medium tracking-tighter text-ios-text tabular-nums text-transparent bg-clip-text bg-gradient-to-b from-gray-800 to-gray-600 drop-shadow-sm transition-all duration-500">00:00</div>
+                    </div>
+                    
+                    <!-- Single Button Mode (Default) -->
+                    <div class="single-btn-container w-full flex justify-center">
+                        <button class="btn-log-wakeup btn-ios w-72 bg-[#1D1D1F] text-white rounded-[24px] py-5 text-[17px] font-semibold shadow-2xl hover:bg-black flex items-center justify-center gap-3 group relative overflow-hidden">
+                            <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="bg-white/20 rounded-full p-1.5 group-hover:rotate-12 transition-transform duration-500 icon-bg-ref"><i class="ph-fill ph-sun text-yellow-300 text-lg icon-ref"></i></div>
+                            <span class="btn-text-ref">记录起床时间</span>
+                        </button>
+                    </div>
+
+                    <!-- Multi Button Mode (Injected via JS) -->
+                    <div class="multi-btn-container hidden w-full max-w-xs flex-col gap-3">
+                         <!-- Buttons injected via JS -->
+                    </div>
+
+                    <div class="mt-6 w-full max-w-xs flex justify-center flex-col items-center">
+                         <button class="btn-toggle-manual text-center text-xs font-medium text-ios-subtext hover:text-ios-blue transition-colors mb-2">没有记录上？手动补签</button>
+                        <div class="manual-input-box hidden w-64 bg-white/50 backdrop-blur-md rounded-2xl p-3 border border-white/60 shadow-sm animate-fade-in flex flex-col gap-2">
+                            <input type="date" class="input-manual-date w-full bg-transparent text-center text-sm font-medium outline-none text-gray-500 h-8 rounded-lg hover:bg-white/50 focus:bg-white transition-colors cursor-pointer">
+                            <div class="flex items-center gap-2">
+                                <input type="time" class="input-manual-time flex-1 bg-transparent text-center font-medium text-lg outline-none text-gray-800 h-10 rounded-xl hover:bg-white/50 focus:bg-white transition-colors cursor-pointer">
+                                <button class="btn-save-manual bg-ios-blue text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-blue-600 transition-colors shadow-sm active:scale-95 transform transition-transform"><i class="ph-bold ph-check"></i></button>
+                            </div>
+                            <select class="input-manual-category hidden w-full bg-white/50 text-xs text-gray-600 h-8 rounded-lg outline-none px-2 mt-1">
+                                <!-- Options injected -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-left"><p class="text-[10px] text-gray-400 font-medium tracking-wide location-label">DESIGNED FOR BEIJING TIME</p></div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="right-column-ref md:col-span-7 h-full justify-center transition-opacity duration-300 relative">
+                
+                <!-- Front Side: Normal Stats and Charts -->
+                <div class="right-content-normal flex flex-col gap-6 h-full transition-all duration-500 absolute inset-0 z-10">
+                    <div class="grid grid-cols-2 gap-4 flex-shrink-0">
+                        <!-- Streak Card -->
+                        <div class="card-streak glass-card rounded-3xl p-6 flex flex-col justify-between h-32 transition-all hover:scale-[1.02] cursor-pointer group active:scale-95 relative overflow-hidden" title="数据备份与导入">
+                            <div class="absolute inset-0 bg-orange-500/0 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
+                            
+                            <div class="flex items-center gap-2 text-orange-500">
+                                <i class="ph-fill ph-fire text-xl group-hover:scale-110 transition-transform icon-streak-ref"></i>
+                                <span class="text-xs font-semibold text-ios-subtext uppercase tracking-wider label-streak-ref">连胜</span>
+                                <i class="ph-bold ph-caret-right ml-auto text-gray-300 opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0"></i>
+                            </div>
+                            <div class="flex flex-col">
+                                <div><span class="streak-count-ref text-4xl font-semibold text-ios-text tracking-tight">0</span><span class="text-sm text-gray-500 font-medium unit-streak-ref">天</span></div>
+                                <div class="text-[10px] text-gray-400 mt-1 font-medium hidden sub-info-streak-ref"></div>
+                            </div>
+                        </div>
+
+                        <!-- Average Time / Count Card -->
+                        <div class="card-filter glass-card rounded-3xl p-6 flex flex-col justify-between h-32 transition-all hover:scale-[1.02] cursor-pointer group active:scale-95 relative overflow-hidden" title="点击筛选时间范围">
+                            <div class="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/5 transition-colors duration-300"></div>
+                            <div class="flex items-center gap-2 text-ios-blue">
+                                <i class="icon-stat-ref ph-fill ph-clock text-xl group-hover:scale-110 transition-transform"></i>
+                                <span class="label-stat-ref text-xs font-semibold text-ios-subtext uppercase tracking-wider">平均时间</span>
+                                <i class="ph-bold ph-funnel ml-auto text-gray-300 opacity-0 group-hover:opacity-100 transition-all transform -translate-x-2 group-hover:translate-x-0"></i>
+                            </div>
+                            <div>
+                                <span class="avg-time-ref text-4xl font-semibold text-ios-text tracking-tight">--:--</span>
+                                <div class="mt-1 text-[10px] text-gray-400 font-medium bg-gray-100/50 inline-block px-2 py-0.5 rounded-full border border-gray-200/50 filter-label-ref">近30天</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Visualization Panel -->
+                    <div class="glass-card rounded-[32px] p-8 flex-grow flex flex-col shadow-sm relative min-h-[300px]">
+                        <div class="flex items-center justify-between mb-6 h-8 relative z-20">
+                            <h3 class="text-base font-semibold text-gray-900 flex-shrink-0">数据洞察</h3>
+                            <div class="flex items-center gap-3">
+                                <!-- Category Filter (Injected JS) -->
+                                <div class="category-filter-container"></div>
+                                
+                                <div class="segmented-control relative z-30">
+                                    <div class="segment-bg-ref segment-active-bg" style="width: 50px; transform: translateX(0px);"></div>
+                                    <div class="segment-btn btn-tab-heatmap">热力</div>
+                                    <div class="segment-btn btn-tab-line">趋势</div>
+                                    <div class="segment-btn btn-tab-dist">分布</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Views -->
+                        <div class="view-heatmap w-full overflow-x-auto custom-scroll pb-2 flex-grow flex flex-col justify-center relative z-10">
+                            <div class="heatmap-grid-ref heatmap-grid mb-3 min-w-max self-start"></div>
+                            <div class="heatmap-legend-ref flex justify-between items-center text-[10px] text-gray-400 font-medium px-1 mt-auto w-full max-w-[400px]">
+                                <!-- Legend injected by JS -->
+                            </div>
+                        </div>
+
+                        <div class="view-line hidden w-full h-full absolute inset-0 pt-20 pb-6 px-6 flex flex-col z-0">
+                            <div class="flex-grow relative w-full h-full min-h-0">
+                                <canvas class="canvas-trend"></canvas>
+                                <button class="btn-reset-zoom absolute top-0 right-0 m-2 bg-white/80 backdrop-blur text-xs px-2 py-1 rounded shadow text-ios-blue hover:bg-white hidden">重置缩放</button>
+                            </div>
+                        </div>
+
+                        <div class="view-dist hidden w-full h-full absolute inset-0 pt-20 pb-6 px-6 flex flex-col z-0">
+                            <div class="flex-grow relative w-full h-full min-h-0"><canvas class="canvas-dist"></canvas></div>
+                            <div class="absolute bottom-2 text-center w-full"><p class="text-[10px] text-gray-400 chart-caption-ref">寻找你的规律</p></div>
+                        </div>
+
+                        <!-- Switch to Blank Button (Only injected for Multi-Tracker) -->
+                        <button class="btn-switch-blank hidden absolute bottom-6 right-6 p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors z-50 group" title="切换视图">
+                            <i class="ph-bold ph-arrows-clockwise text-lg transition-transform group-hover:rotate-180 duration-500"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Back Side: Review & Todo Split View (Modified) -->
+                <div class="right-content-blank hidden w-full h-full flex-col absolute inset-0 z-20">
+                    <div class="glass-card rounded-[32px] w-full h-full flex p-6 gap-6 relative overflow-hidden bg-white/80 backdrop-blur-xl">
+                        
+                        <!-- Left: Wengu Review List -->
+                        <div class="flex-1 flex flex-col min-h-0 relative">
+                            <div class="flex items-center gap-2 mb-4 pb-2 border-b border-purple-100">
+                                <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                                    <i class="ph-fill ph-book-bookmark text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-sm">今日待复习</h4>
+                                    <p class="text-[10px] text-purple-500 font-medium wengu-count-ref">Loading...</p>
+                                </div>
+                            </div>
+                            <div class="wengu-list-container flex-1 overflow-y-auto custom-scroll pr-2 space-y-2">
+                                <!-- Wengu items injected here -->
+                                <div class="flex flex-col items-center justify-center h-full text-gray-400 text-xs">
+                                    <i class="ph ph-spinner animate-spin text-xl mb-2"></i>
+                                    <span>读取温故系统数据中...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="w-px bg-gray-200 my-2"></div>
+
+                        <!-- Right: Zhixin Todo List -->
+                        <div class="flex-1 flex flex-col min-h-0 relative">
+                            <div class="flex items-center gap-2 mb-4 pb-2 border-b border-orange-100">
+                                <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                                    <i class="ph-fill ph-list-checks text-orange-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-sm">今日知新待办</h4>
+                                    <p class="text-[10px] text-orange-500 font-medium zhixin-count-ref">Loading...</p>
+                                </div>
+                            </div>
+                            <div class="zhixin-list-container flex-1 overflow-y-auto custom-scroll pr-2 space-y-2">
+                                <!-- Zhixin items injected here -->
+                                <div class="flex flex-col items-center justify-center h-full text-gray-400 text-xs">
+                                    <i class="ph ph-spinner animate-spin text-xl mb-2"></i>
+                                    <span>读取知新系统数据中...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn-switch-back absolute bottom-3 right-3 p-2 rounded-full bg-white hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors z-50 group shadow-sm border border-gray-100" title="返回">
+                            <i class="ph-bold ph-arrows-clockwise text-lg transition-transform group-hover:rotate-180 duration-500"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modals -->
+            <!-- Filter Modal -->
+            <div class="modal-filter absolute inset-0 z-50 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300">
+                <div class="modal-backdrop absolute inset-0 bg-black/20 backdrop-blur-md cursor-pointer"></div>
+                <div class="modal-content w-full max-w-md glass-panel rounded-[32px] p-8 m-4 transform scale-95 transition-all duration-300 relative overflow-hidden flex flex-col gap-6 shadow-2xl">
+                    <div class="flex justify-between items-center border-b border-gray-200/50 pb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-ios-text">时间范围筛选</h2>
+                        </div>
+                        <button class="btn-close-filter p-2 rounded-full hover:bg-black/5 transition-colors active:scale-95"><i class="ph-bold ph-x text-lg text-gray-500"></i></button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3 filter-presets-container">
+                        <!-- Buttons injected via JS -->
+                    </div>
+                    <div class="pt-2 border-t border-gray-200/50">
+                        <label class="text-xs font-semibold text-ios-subtext uppercase tracking-wider block mb-3">自定义范围</label>
+                        <div class="flex items-center gap-3">
+                            <input type="date" class="input-filter-start flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:border-ios-blue focus:outline-none transition-colors">
+                            <span class="text-gray-400">-</span>
+                            <input type="date" class="input-filter-end flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:border-ios-blue focus:outline-none transition-colors">
+                        </div>
+                        <button class="btn-apply-custom w-full mt-3 bg-ios-blue text-white rounded-xl py-3 text-sm font-semibold shadow-lg shadow-blue-500/20 active:scale-98 transition-transform">应用自定义范围</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Settings Modal -->
+            <div class="modal-data absolute inset-0 z-50 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300">
+                <div class="modal-backdrop-data absolute inset-0 bg-black/20 backdrop-blur-md cursor-pointer"></div>
+                <div class="modal-content-data w-full max-w-lg glass-panel rounded-[32px] p-8 m-4 transform scale-95 transition-all duration-300 relative overflow-hidden flex flex-col gap-6 shadow-2xl">
+                    <div class="flex justify-between items-center border-b border-gray-200/50 pb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-ios-text">数据管理</h2>
+                        </div>
+                        <button class="btn-close-data p-2 rounded-full hover:bg-black/5 transition-colors active:scale-95"><i class="ph-bold ph-x text-lg text-gray-500"></i></button>
+                    </div>
+                    
+                    <div class="settings-container space-y-4 hidden mb-2">
+                        <!-- Configs injected via JS -->
+                    </div>
+
+                    <div class="space-y-2 mt-2">
+                        <label class="text-xs font-semibold text-ios-subtext uppercase tracking-wider block">数据备份</label>
+                        <button class="btn-export w-full bg-white text-orange-600 border border-orange-200 rounded-xl py-2 text-xs font-semibold shadow-sm hover:shadow-md hover:bg-orange-50 transition-all active:scale-98 flex items-center justify-center gap-2"><i class="ph-bold ph-file-arrow-down"></i>导出备份 (.json)</button>
+                        <div class="relative">
+                            <button class="btn-import w-full bg-white text-ios-blue border border-blue-200 rounded-xl py-2 text-xs font-semibold shadow-sm hover:shadow-md hover:bg-blue-50 transition-all active:scale-98 flex items-center justify-center gap-2"><i class="ph-bold ph-folder-open"></i>导入备份</button>
+                            <input type="file" accept=".json" class="input-import-file hidden">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delete Choice Modal (New) -->
+            <div class="modal-delete-choice absolute inset-0 z-[60] flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300">
+                <div class="modal-backdrop-delete absolute inset-0 bg-black/20 backdrop-blur-md cursor-pointer"></div>
+                <div class="modal-content-delete w-full max-w-sm glass-panel rounded-[32px] p-8 m-4 transform scale-95 transition-all duration-300 relative overflow-hidden flex flex-col gap-4 shadow-2xl">
+                    <h2 class="text-lg font-bold text-ios-text text-center">删除选项</h2>
+                    <p class="text-xs text-gray-500 text-center -mt-2">请选择您要执行的删除操作</p>
+                    
+                    <button class="btn-delete-today w-full bg-white border border-gray-200 text-gray-800 rounded-xl py-3 text-sm font-semibold shadow-sm hover:bg-gray-50 transition-all active:scale-95">仅删除今日数据</button>
+                    <button class="btn-delete-all w-full bg-red-50 border border-red-100 text-red-600 rounded-xl py-3 text-sm font-semibold shadow-sm hover:bg-red-100 transition-all active:scale-95">删除所有数据</button>
+                    <button class="btn-cancel-delete mt-2 w-full text-gray-400 text-xs py-2 hover:text-gray-600">取消</button>
+                </div>
+            </div>
+
+        </main>
+    </template>
+
+    <script>
+        // --- 核心算法复用区 ---
+        // 为了正确读取温故系统的复习状态，这里复制了温故系统的核心算法常量
+        const WENGU_CONSTANTS = {
+            intervals: [1*24*60, 2*24*60, 4*24*60, 7*24*60, 14*24*60, 30*24*60, 60*24*60, 90*24*60, 180*24*60, 365*24*60],
+            reviewGroups: [[0, 1], [2], [3, 4], [5, 6], [7], [8], [9]],
+            groupDisplayNames: ["1-2天", "3-4天", "1-2周", "1-2月", "3个月", "6个月", "1年"]
+        };
+
+        function getCalendarDaysDiff(dateFrom, dateTo) {
+            const oneDay = 1000 * 60 * 60 * 24;
+            const d1 = new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate());
+            const d2 = new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate());
+            const diffTime = d2 - d1;
+            return Math.floor(diffTime / oneDay);
+        }
+
+        function checkWenguReviewStatus(item, groupIndex, diffDays) {
+            // 复制自温故系统 checkReviewStatus 函数
+            const indices = WENGU_CONSTANTS.reviewGroups[groupIndex];
+            const isGroupFullyReviewed = indices.every(i => item.reviewed && item.reviewed[i]);
+            
+            if (isGroupFullyReviewed) return { due: false, overdue: false };
+            if (groupIndex === 1 && item.importance === '一般') return { due: false, overdue: false };
+
+            let due = false;
+            let overdue = false;
+
+            const firstStageIndex = WENGU_CONSTANTS.reviewGroups[groupIndex][0];
+            const targetMinutes = WENGU_CONSTANTS.intervals[firstStageIndex];
+            const targetDays = targetMinutes / (24 * 60);
+
+            if (targetDays <= 7) {
+                if (diffDays >= targetDays && diffDays < targetDays + 2) due = true;
+                if (diffDays >= targetDays + 2) { due = true; overdue = true; }
+            } else {
+                if (diffDays >= targetDays - 2 && diffDays < targetDays + (targetDays * 0.5)) due = true;
+                if (diffDays >= targetDays + (targetDays * 0.5)) { due = true; overdue = true; }
+            }
+
+            return { due, overdue };
+        }
+        
+        // --- 辅助生成UUID ---
+        function generateUniqueId() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                return crypto.randomUUID();
+            }
+            return Date.now().toString(36) + Math.random().toString(36).substring(2);
+        }
+        // --- 核心算法复用区结束 ---
+
+
+        // --- Drag Manager for Sortable Dashboards ---
+        const DragManager = {
+            draggedEl: null,
+            placeholder: null,
+            longPressTimer: null,
+            isDragging: false,
+            startX: 0,
+            startY: 0,
+            initialRect: null,
+            currentCallbacks: null, 
+            
+            register(container, handle, callbacks) {
+                handle.style.touchAction = 'none'; 
+                handle.style.userSelect = 'none';
+                
+                const startHandler = (e) => {
+                    if (e.type === 'mousedown' && e.button !== 0) return;
+                    
+                    this.startX = e.clientX || e.touches[0].clientX;
+                    this.startY = e.clientY || e.touches[0].clientY;
+                    this.isDragging = false;
+                    
+                    this.longPressTimer = setTimeout(() => {
+                        this.isDragging = true;
+                        this.startDrag(container, callbacks); 
+                    }, 300);
+                    
+                    window.addEventListener('mousemove', moveHandler);
+                    window.addEventListener('touchmove', moveHandler, {passive: false});
+                    window.addEventListener('mouseup', endHandler);
+                    window.addEventListener('touchend', endHandler);
+                };
+                
+                const moveHandler = (e) => {
+                    const clientX = e.clientX || e.touches?.[0].clientX;
+                    const clientY = e.clientY || e.touches?.[0].clientY;
+                    
+                    if (!this.isDragging) {
+                        const dx = clientX - this.startX;
+                        const dy = clientY - this.startY;
+                        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                            clearTimeout(this.longPressTimer);
+                        }
+                    } else {
+                        if(e.cancelable) e.preventDefault(); 
+                        this.updateDrag(clientX, clientY);
+                    }
+                };
+                
+                const endHandler = (e) => {
+                    clearTimeout(this.longPressTimer);
+                    window.removeEventListener('mousemove', moveHandler);
+                    window.removeEventListener('touchmove', moveHandler);
+                    window.removeEventListener('mouseup', endHandler);
+                    window.removeEventListener('touchend', endHandler);
+                    
+                    if (this.isDragging) {
+                        this.stopDrag();
+                    } else {
+                        if (callbacks.onClick) callbacks.onClick();
+                    }
+                };
+
+                handle.addEventListener('mousedown', startHandler);
+                handle.addEventListener('touchstart', startHandler, {passive: false});
+            },
+            
+            startDrag(el, callbacks) {
+                this.draggedEl = el;
+                this.currentCallbacks = callbacks;
+                this.initialRect = el.getBoundingClientRect();
+                
+                this.placeholder = document.createElement('div');
+                this.placeholder.style.width = this.initialRect.width + 'px';
+                this.placeholder.style.height = this.initialRect.height + 'px';
+                this.placeholder.className = 'flex-shrink-0 transition-all duration-300';
+                
+                el.style.position = 'fixed';
+                el.style.zIndex = 9999;
+                el.style.width = this.initialRect.width + 'px';
+                el.style.height = this.initialRect.height + 'px';
+                el.style.left = this.initialRect.left + 'px';
+                el.style.top = this.initialRect.top + 'px';
+                el.style.transition = 'none';
+                el.classList.add('dashboard-container-dragging', 'shadow-2xl', 'scale-[1.02]', 'cursor-grabbing');
+                
+                el.parentNode.insertBefore(this.placeholder, el);
+                
+                if (navigator.vibrate) navigator.vibrate(50);
+            },
+            
+            updateDrag(x, y) {
+                if (!this.draggedEl) return;
+                
+                const dx = x - this.startX;
+                const dy = y - this.startY;
+                
+                this.draggedEl.style.transform = `translate(${dx}px, ${dy}px)`;
+                
+                this.draggedEl.style.pointerEvents = 'none'; 
+                let target = document.elementFromPoint(x, y);
+                this.draggedEl.style.pointerEvents = '';
+                
+                while (target && (!target.id || !target.id.includes('dashboard-')) && target !== document.body) {
+                    target = target.parentNode;
+                }
+                
+                if (target && target.id && target.id.includes('dashboard-') && target !== this.draggedEl) {
+                    const parent = this.placeholder.parentNode;
+                    const siblings = Array.from(parent.children).filter(c => c.id && c.id.includes('dashboard-') && c.style.position !== 'fixed');
+                    const targetIndex = siblings.indexOf(target);
+                    const placeIndex = Array.from(parent.children).indexOf(this.placeholder);
+                    
+                    if (targetIndex !== -1) {
+                        if (placeIndex < Array.from(parent.children).indexOf(target)) {
+                            parent.insertBefore(this.placeholder, target.nextSibling);
+                        } else {
+                            parent.insertBefore(this.placeholder, target);
+                        }
+                    }
+                }
+            },
+            
+            stopDrag() {
+                if (!this.draggedEl) return;
+                
+                const rect = this.placeholder.getBoundingClientRect();
+                
+                this.draggedEl.style.transition = 'all 0.4s cubic-bezier(0.2, 1, 0.3, 1)';
+                this.draggedEl.style.transform = ''; 
+                this.draggedEl.style.left = rect.left + 'px';
+                this.draggedEl.style.top = rect.top + 'px';
+                
+                setTimeout(() => {
+                    this.draggedEl.style.position = '';
+                    this.draggedEl.style.zIndex = '';
+                    this.draggedEl.style.width = '';
+                    this.draggedEl.style.height = '';
+                    this.draggedEl.style.left = '';
+                    this.draggedEl.style.top = '';
+                    this.draggedEl.style.transition = '';
+                    this.draggedEl.classList.remove('dashboard-container-dragging', 'shadow-2xl', 'scale-[1.02]', 'cursor-grabbing');
+                    
+                    if (this.placeholder && this.placeholder.parentNode) {
+                        this.placeholder.parentNode.insertBefore(this.draggedEl, this.placeholder);
+                        this.placeholder.parentNode.removeChild(this.placeholder);
+                    }
+                    
+                    if (this.currentCallbacks && this.currentCallbacks.onDrop) {
+                        this.currentCallbacks.onDrop();
+                    }
+
+                    this.draggedEl = null;
+                    this.placeholder = null;
+                    this.currentCallbacks = null;
+                }, 400);
+            }
+        };
+
+        // --- Dashboard Class Definition ---
+        class MorningDashboard {
+            constructor(containerId, storageKey, config, instanceId, onToggleCallback, onGlobalToggleCallback) {
+                this.container = document.getElementById(containerId);
+                this.storageKey = storageKey;
+                this.storageKeyFilter = storageKey + '_filter';
+                this.storageKeySettings = storageKey + '_settings'; 
+                this.storageKeyViewState = storageKey + '_view_state';
+
+                this.config = config; 
+                this.instanceId = instanceId;
+                this.onToggleCallback = onToggleCallback;
+                this.onGlobalToggleCallback = onGlobalToggleCallback;
+
+                this.data = JSON.parse(localStorage.getItem(this.storageKey)) || [];
+                this.filter = JSON.parse(localStorage.getItem(this.storageKeyFilter)) || { type: 'days', value: 30 };
+                
+                let defaultSettings;
+                if (config.mode === 'counter') {
+                    defaultSettings = { weeklyLimit: 3 };
+                } else if (config.mode === 'multi-tracker') {
+                    defaultSettings = { zhixinTarget: 20, syncCharts: false }; 
+                } else {
+                    defaultSettings = { targetTime: "07:00" };
+                }
+                this.settings = { ...defaultSettings, ...JSON.parse(localStorage.getItem(this.storageKeySettings) || '{}') };
+                
+                const savedState = JSON.parse(localStorage.getItem(this.storageKeyViewState));
+                this.isCompact = savedState !== null ? savedState : false;
+
+                this.clickTimer = null;
+                this.trendChart = null;
+                this.distChart = null;
+                this.currentCategoryFilter = 'all';
+                // Initialize isBlankPage based on config
+                this.isBlankPage = config.defaultToBackSide || false;
+                
+                this.init();
+            }
+
+            init() {
+                const template = document.getElementById('dashboard-template').content.cloneNode(true);
+                this.container.appendChild(template);
+                this.root = this.container.querySelector('.dashboard-root');
+                
+                if (this.isCompact) {
+                    this.root.classList.add('mode-compact');
+                    setTimeout(() => {
+                        const toggleIcon = this.root.querySelector('.icon-toggle');
+                        if (toggleIcon) {
+                            toggleIcon.classList.replace('ph-arrows-in-simple', 'ph-arrows-out-simple');
+                        }
+                        if (this.onToggleCallback) {
+                            this.onToggleCallback(this.instanceId, true);
+                        }
+                    }, 0);
+                }
+                
+                this.root.querySelector('.dashboard-title-ref').textContent = this.config.title;
+                
+                if (this.config.mode === 'counter') {
+                    this.root.querySelector('.btn-text-ref').textContent = '记录一次';
+                    this.root.querySelector('.icon-ref').classList.replace('ph-sun', 'ph-lightning'); 
+                    this.root.querySelector('.label-stat-ref').textContent = '累计次数';
+                    this.root.querySelector('.icon-stat-ref').classList.replace('ph-clock', 'ph-sigma');
+                    this.root.querySelector('.chart-caption-ref').textContent = '时段分布';
+                    this.root.querySelector('.icon-streak-ref').classList.replace('ph-fire', 'ph-medal');
+                    this.root.querySelector('.label-streak-ref').textContent = '成功周数';
+                } else if (this.config.mode === 'multi-tracker') {
+                    const switchBtn = this.root.querySelector('.btn-switch-blank');
+                    if(switchBtn) {
+                        switchBtn.classList.remove('hidden');
+                        switchBtn.onclick = () => this.toggleBlankPage();
+                    }
+                    const switchBackBtn = this.root.querySelector('.btn-switch-back');
+                    if(switchBackBtn) {
+                        switchBackBtn.onclick = () => this.toggleBlankPage();
+                    }
+
+                    this.root.querySelector('.single-btn-container').classList.add('hidden');
+                    const multiContainer = this.root.querySelector('.multi-btn-container');
+                    multiContainer.classList.remove('hidden');
+                    multiContainer.classList.add('flex');
+                    
+                    this.config.categories.forEach(cat => {
+                         const btn = document.createElement('button');
+                         btn.className = `btn-log-cat w-full text-white rounded-[20px] py-4 text-[15px] font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-between px-6 group relative overflow-hidden`;
+                         
+                         let colorClass = 'bg-[#1D1D1F]';
+                         let iconClass = 'ph-check-circle';
+                         
+                         if(cat === 'Anki') { colorClass = 'bg-blue-500'; iconClass = 'ph-star'; }
+                         else if(cat === '温故系统') { colorClass = 'bg-purple-500'; iconClass = 'ph-book-bookmark'; }
+                         else if(cat === '知新系统') { colorClass = 'bg-orange-500'; iconClass = 'ph-rocket-launch'; }
+                         
+                         btn.classList.add(colorClass.replace('bg-', 'hover:bg-'));
+                         btn.style.backgroundColor = cat === 'Anki' ? '#3B82F6' : (cat === '温故系统' ? '#A855F7' : '#F97316');
+
+                         let extraHtml = ''; 
+
+                         btn.innerHTML = `
+                            <span class="z-10">${cat}</span>
+                            <div class="flex items-center gap-2 z-10 pr-2">
+                                <div class="bg-white/20 rounded-full p-1.5"><i class="ph-fill ${iconClass} text-white text-lg"></i></div>
+                            </div>
+                            <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            ${extraHtml}
+                         `;
+                         
+                         btn.onclick = (e) => {
+                             // --- 针对温故系统：仅跳转，不打卡 ---
+                             if (cat === '温故系统') {
+                                 // 1. 如果当前在“背面”（待办列表），翻转到正面（图表）
+                                 if (this.isBlankPage) {
+                                     this.toggleBlankPage();
+                                 }
+                                 
+                                 // 2. 切换过滤器为“温故系统”
+                                 this.currentCategoryFilter = '温故系统';
+                                 this.updateFilterButtonsUI();
+                                 
+                                 // 3. 切换到底部的“热力”标签页
+                                 const heatmapTabBtn = this.root.querySelector('.btn-tab-heatmap');
+                                 this.switchTab('heatmap', heatmapTabBtn);
+                                 
+                                 // 4. 刷新图表
+                                 this.renderAllCharts();
+                             } 
+                             // --- 新增：知新系统 和 Anki 也要跳转 ---
+                             else if (cat === '知新系统' || cat === 'Anki') {
+                                 // 1. 记录数据 (保持原有逻辑)
+                                 this.logAction(cat);
+
+                                 // 2. 如果在背面，切回正面图表
+                                 if (this.isBlankPage) {
+                                     this.toggleBlankPage();
+                                 }
+
+                                 // 3. 切换过滤器到当前分类
+                                 this.currentCategoryFilter = cat;
+                                 this.updateFilterButtonsUI();
+
+                                 // 4. 切换到热力图并刷新
+                                 const heatmapTabBtn = this.root.querySelector('.btn-tab-heatmap');
+                                 this.switchTab('heatmap', heatmapTabBtn);
+                                 this.renderAllCharts();
+                             }
+                             else {
+                                 // 其他系统（保持原有打卡逻辑，如果未来增加了其他分类）
+                                 this.logAction(cat);
+                             }
+                         };
+
+                         multiContainer.appendChild(btn);
+                    });
+
+                    const catSelect = this.root.querySelector('.input-manual-category');
+                    catSelect.classList.remove('hidden');
+                    this.config.categories.forEach(cat => {
+                        const opt = document.createElement('option');
+                        opt.value = cat;
+                        opt.textContent = cat;
+                        catSelect.appendChild(opt);
+                    });
+
+                    this.root.querySelector('.label-streak-ref').textContent = '打卡天数';
+                    this.root.querySelector('.icon-streak-ref').classList.replace('ph-fire', 'ph-calendar-check');
+                    this.root.querySelector('.label-stat-ref').textContent = '平均时间'; 
+
+                    // --- NEW CATEGORY FILTER BUTTONS (Replaces Select) ---
+                    const filterContainer = this.root.querySelector('.category-filter-container');
+                    filterContainer.innerHTML = '';
+                    
+                    // Create wrapper for the pill buttons
+                    const pillContainer = document.createElement('div');
+                    pillContainer.className = "flex items-center bg-gray-100/50 p-0.5 rounded-lg gap-0.5"; 
+
+                    // Define options with short labels
+                    const shortLabels = {
+                        '知新系统': '知新',
+                        '温故系统': '温故',
+                        'Anki': 'Anki'
+                    };
+
+                    const options = [
+                        { label: '全部', value: 'all' },
+                        ...this.config.categories.map(c => ({ label: shortLabels[c] || c, value: c }))
+                    ];
+
+                    options.forEach(opt => {
+                        const btn = document.createElement('button');
+                        // Base style
+                        btn.className = "px-2.5 py-1 text-[10px] font-medium rounded-[6px] transition-all duration-200 whitespace-nowrap";
+                        btn.textContent = opt.label;
+                        btn.dataset.value = opt.value;
+                        
+                        btn.onclick = () => {
+                            this.currentCategoryFilter = opt.value;
+                            this.updateFilterButtonsUI(pillContainer); 
+                            this.renderAllCharts();
+                        };
+                        
+                        pillContainer.appendChild(btn);
+                    });
+
+                    filterContainer.appendChild(pillContainer);
+                    this.updateFilterButtonsUI(pillContainer); // Set initial state
+                    // ----------------------------------------------------
+
+                } else {
+                    this.root.querySelector('.icon-streak-ref').classList.replace('ph-fire', 'ph-calendar-check');
+                    this.root.querySelector('.label-streak-ref').textContent = '成功天数';
+                }
+
+                this.elements = {
+                    dateDisplay: this.root.querySelector('.current-date-ref'),
+                    clockDisplay: this.root.querySelector('.clock-display-ref'),
+                    streakCount: this.root.querySelector('.streak-count-ref'),
+                    streakUnit: this.root.querySelector('.unit-streak-ref'),
+                    streakSubInfo: this.root.querySelector('.sub-info-streak-ref'),
+                    avgTime: this.root.querySelector('.avg-time-ref'), 
+                    filterLabel: this.root.querySelector('.filter-label-ref'),
+                    heatmapGrid: this.root.querySelector('.heatmap-grid-ref'),
+                    heatmapLegend: this.root.querySelector('.heatmap-legend-ref'),
+                    settingsContainer: this.root.querySelector('.settings-container'), 
+                    views: {
+                        heatmap: this.root.querySelector('.view-heatmap'),
+                        line: this.root.querySelector('.view-line'),
+                        dist: this.root.querySelector('.view-dist')
+                    },
+                    modals: {
+                        filter: this.root.querySelector('.modal-filter'),
+                        filterContent: this.root.querySelector('.modal-content'),
+                        data: this.root.querySelector('.modal-data'),
+                        dataContent: this.root.querySelector('.modal-content-data'),
+                        delete: this.root.querySelector('.modal-delete-choice'),
+                        deleteContent: this.root.querySelector('.modal-content-delete'),
+                        deleteBackdrop: this.root.querySelector('.modal-backdrop-delete')
+                    }
+                };
+                
+                // Initial View State Logic (New)
+                if (this.isBlankPage) {
+                    const normalContent = this.root.querySelector('.right-content-normal');
+                    const blankContent = this.root.querySelector('.right-content-blank');
+                    
+                    normalContent.classList.add('hidden');
+                    normalContent.style.opacity = '0';
+                    normalContent.style.pointerEvents = 'none';
+                    
+                    blankContent.classList.remove('hidden');
+                    blankContent.style.opacity = '1';
+                    
+                    this.renderBackSideData();
+                }
+
+                this.updateDateDisplay();
+                this.updateClock();
+                setInterval(() => this.updateClock(), 1000);
+                this.updateFilterLabel();
+                this.setupInputs();
+                
+                this.bindEvents();
+                
+                this.renderAllCharts();
+
+                // 使用新的辅助函数初始化选项卡位置
+                this.updateSegmentPillPosition();
+            }
+
+            // --- 新增：专门用于更新选项卡背景条位置的辅助函数 ---
+            // 解决“紧急切换”时 offsetWidth 为 0 导致背景条不显示的问题
+            updateSegmentPillPosition() {
+                // 找到当前激活的 tab 按钮
+                let activeBtnSelector = '.btn-tab-heatmap';
+                if (!this.elements.views.line.classList.contains('hidden')) {
+                    activeBtnSelector = '.btn-tab-line';
+                } else if (!this.elements.views.dist.classList.contains('hidden')) {
+                    activeBtnSelector = '.btn-tab-dist';
+                }
+
+                const activeBtn = this.root.querySelector(activeBtnSelector);
+                const bg = this.root.querySelector('.segment-bg-ref');
+
+                if (activeBtn && bg) {
+                    // 使用 requestAnimationFrame 确保在布局计算后执行
+                    requestAnimationFrame(() => {
+                        // 如果元素宽度仍为0 (可能因为动画未结束或仍处于 hidden 状态)，稍后重试
+                        if (activeBtn.offsetWidth > 0) {
+                            bg.style.width = `${activeBtn.offsetWidth}px`;
+                            bg.style.transform = `translateX(${activeBtn.offsetLeft}px)`;
+                        } else {
+                            setTimeout(() => this.updateSegmentPillPosition(), 50);
+                        }
+                    });
+                }
+            }
+
+            // --- New Helper to update Filter Button UI ---
+            updateFilterButtonsUI(container = null) {
+                if (!container) {
+                    container = this.root.querySelector('.category-filter-container > div');
+                }
+                if (!container) return;
+
+                Array.from(container.children).forEach(btn => {
+                    if (btn.dataset.value === this.currentCategoryFilter) {
+                        btn.className = "px-2.5 py-1 text-[10px] font-medium rounded-[6px] transition-all duration-200 whitespace-nowrap bg-white text-ios-blue shadow-sm scale-100";
+                    } else {
+                        btn.className = "px-2.5 py-1 text-[10px] font-medium rounded-[6px] transition-all duration-200 whitespace-nowrap text-gray-400 hover:text-gray-600 hover:bg-black/5";
+                    }
+                });
+            }
+            // ---------------------------------------------
+
+            toggleBlankMode() {
+                this.isBlankMode = !this.isBlankMode;
+                const icon = this.root.querySelector('.icon-blank-toggle');
+                if (icon) {
+                    if (this.isBlankMode) {
+                        icon.classList.replace('ph-eye', 'ph-eye-slash');
+                    } else {
+                        icon.classList.replace('ph-eye-slash', 'ph-eye');
+                    }
+                }
+                this.renderAllCharts();
+            }
+
+            toggleBlankPage() {
+                this.isBlankPage = !this.isBlankPage;
+                const normalContent = this.root.querySelector('.right-content-normal');
+                const blankContent = this.root.querySelector('.right-content-blank');
+                
+                if (this.isBlankPage) {
+                    normalContent.style.opacity = '0';
+                    normalContent.style.pointerEvents = 'none';
+                    setTimeout(() => {
+                        normalContent.classList.add('hidden');
+                        blankContent.classList.remove('hidden');
+                        blankContent.style.opacity = '0';
+                        
+                        // 触发数据加载
+                        this.renderBackSideData();
+
+                        requestAnimationFrame(() => {
+                            blankContent.style.opacity = '1';
+                        });
+                    }, 300);
+                } else {
+                    blankContent.style.opacity = '0';
+                    setTimeout(() => {
+                        blankContent.classList.add('hidden');
+                        normalContent.classList.remove('hidden');
+                        normalContent.style.pointerEvents = 'auto';
+                        
+                        // --- 关键修复：切换回正面时强制刷新图表和选项栏UI ---
+                        this.renderAllCharts(); 
+                        this.updateSegmentPillPosition();
+                        // ----------------------------------------------
+
+                        requestAnimationFrame(() => {
+                            normalContent.style.opacity = '1';
+                        });
+                    }, 300);
+                }
+            }
+            
+            // --- 烟花庆祝效果 ---
+            triggerCelebration() {
+                // 简单的礼花效果
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    zIndex: 9999
+                });
+
+                // 可选：再来两发侧边的
+                setTimeout(() => {
+                     confetti({
+                        particleCount: 50,
+                        angle: 60,
+                        spread: 55,
+                        origin: { x: 0 },
+                        zIndex: 9999
+                    });
+                     confetti({
+                        particleCount: 50,
+                        angle: 120,
+                        spread: 55,
+                        origin: { x: 1 },
+                        zIndex: 9999
+                    });
+                }, 200);
+            }
+
+            // --- 读取外部系统数据核心逻辑 (带交互功能) ---
+            renderBackSideData() {
+                // 温故系统部分
+                const wenguContainer = this.root.querySelector('.wengu-list-container');
+                const wenguCountRef = this.root.querySelector('.wengu-count-ref');
+                wenguContainer.innerHTML = '';
+                
+                try {
+                    const wenguDataStr = localStorage.getItem('scheduleData');
+                    const wenguData = wenguDataStr ? JSON.parse(wenguDataStr) : [];
+                    const now = this.getBeijingDate();
+                    let wenguCount = 0;
+
+                    if (wenguData.length === 0) {
+                        wenguContainer.innerHTML = '<div class="text-center text-gray-400 text-xs py-4">温故系统暂无数据</div>';
+                    } else {
+                        wenguData.forEach(item => {
+                            if (!item.initial) return;
+                            const initialDate = new Date(item.initial);
+                            if (isNaN(initialDate.getTime())) return;
+                            
+                            const diffDays = getCalendarDaysDiff(initialDate, now);
+                            
+                            WENGU_CONSTANTS.reviewGroups.forEach((group, groupIndex) => {
+                                const status = checkWenguReviewStatus(item, groupIndex, diffDays);
+                                if (status.due) {
+                                    wenguCount++;
+                                    const stageName = WENGU_CONSTANTS.groupDisplayNames[groupIndex];
+                                    const overdueTag = status.overdue ? '<span class="text-red-500 font-bold ml-1 text-[10px]">逾期</span>' : '';
+                                    
+                                    const div = document.createElement('div');
+                                    div.className = "bg-white p-2 rounded-xl border border-purple-50 hover:border-green-400 hover:bg-green-50 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden";
+                                    div.innerHTML = `
+                                        <div class="flex justify-between items-start relative z-10">
+                                            <div class="text-xs font-semibold text-gray-700 truncate w-32 group-hover:text-green-700" title="${item.concept}">${item.concept}</div>
+                                            <div class="text-[10px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded group-hover:bg-white/50">${stageName}</div>
+                                        </div>
+                                        <div class="flex justify-between items-center mt-1 relative z-10">
+                                            <div class="text-[10px] text-gray-400">标签: ${(item.tags || []).join(', ') || '-'}</div>
+                                            ${overdueTag}
+                                        </div>
+                                        <div class="absolute inset-0 flex items-center justify-center bg-white/60 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
+                                            <i class="ph-bold ph-check text-green-500 text-2xl drop-shadow-sm"></i>
+                                        </div>
+                                    `;
+                                    
+                                    // 绑定点击事件: 打钩
+                                    div.onclick = () => this.handleWenguCheck(item.id, groupIndex);
+
+                                    wenguContainer.appendChild(div);
+                                }
+                            });
+                        });
+                        
+                        if (wenguCount === 0) {
+                            wenguContainer.innerHTML = '<div class="text-center text-gray-400 text-xs py-4">太棒了，今日无待复习！</div>';
+                        }
+                    }
+                    wenguCountRef.textContent = `${wenguCount} 项待办`;
+
+                } catch (e) {
+                    console.error("读取温故系统数据失败", e);
+                    wenguContainer.innerHTML = '<div class="text-center text-red-400 text-xs py-4">读取数据出错</div>';
+                }
+
+                // 知新系统部分
+                const zhixinContainer = this.root.querySelector('.zhixin-list-container');
+                const zhixinCountRef = this.root.querySelector('.zhixin-count-ref');
+                zhixinContainer.innerHTML = '';
+
+                try {
+                    const zhixinDataStr = localStorage.getItem('todayToDoList');
+                    const zhixinData = zhixinDataStr ? JSON.parse(zhixinDataStr) : [];
+                    const todayStr = this.formatBeijingDate(this.getBeijingDate());
+                    
+                    // 过滤出今日的待办
+                    const todayTodos = zhixinData.filter(item => item.addedDate === todayStr);
+                    
+                    if (todayTodos.length === 0) {
+                        zhixinContainer.innerHTML = '<div class="text-center text-gray-400 text-xs py-4">知新系统今日无待办</div>';
+                    } else {
+                        todayTodos.forEach(item => {
+                            const div = document.createElement('div');
+                            div.className = "bg-white p-2 rounded-xl border border-orange-50 hover:border-green-400 hover:bg-green-50 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden";
+                            div.innerHTML = `
+                                <div class="flex justify-between items-start relative z-10">
+                                    <div class="text-xs font-semibold text-gray-700 truncate w-32 group-hover:text-green-700" title="${item.moduleName}">${item.moduleName}</div>
+                                    <div class="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded group-hover:bg-white/50">课程 ${item.taskNumber}</div>
+                                </div>
+                                <div class="text-[10px] text-gray-400 mt-1 relative z-10">${item.subjectTitle || '未分类'}</div>
+                                <div class="absolute inset-0 flex items-center justify-center bg-white/60 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
+                                    <i class="ph-bold ph-check text-green-500 text-2xl drop-shadow-sm"></i>
+                                </div>
+                            `;
+
+                            // 绑定点击事件: 完成待办
+                            div.onclick = () => this.handleZhixinCheck(item);
+
+                            zhixinContainer.appendChild(div);
+                        });
+                    }
+                    zhixinCountRef.textContent = `${todayTodos.length} 项待办`;
+
+                } catch (e) {
+                    console.error("读取知新系统数据失败", e);
+                    zhixinContainer.innerHTML = '<div class="text-center text-red-400 text-xs py-4">读取数据出错</div>';
+                }
+            }
+
+            // --- 处理温故系统点击事件 (修复版: 同步写入 reviewLog) ---
+            handleWenguCheck(itemId, groupIndex) {
+                try {
+                    // 触发烟花特效
+                    this.triggerCelebration();
+
+                    const wenguDataStr = localStorage.getItem('scheduleData');
+                    if (!wenguDataStr) return;
+                    
+                    const wenguData = JSON.parse(wenguDataStr);
+                    const itemIndex = wenguData.findIndex(i => i.id === itemId);
+                    
+                    if (itemIndex > -1) {
+                        const item = wenguData[itemIndex];
+                        // 找到该阶段对应的所有review索引并标记为true
+                        const indicesToMark = WENGU_CONSTANTS.reviewGroups[groupIndex];
+                        if (item.reviewed && Array.isArray(item.reviewed)) {
+                            // 【修复关键点】获取当前 ISO 时间戳，用于热力图记录
+                            const nowISO = new Date().toISOString();
+
+                            indicesToMark.forEach(idx => {
+                                if (idx < item.reviewed.length) {
+                                    item.reviewed[idx] = true;
+                                    
+                                    // 【修复关键点】同步写入 reviewLog
+                                    // 这样温故系统的热力图就能读取到这个时间戳，并显示绿色格子
+                                    if (!item.reviewLog) item.reviewLog = {};
+                                    item.reviewLog[idx] = nowISO;
+                                }
+                            });
+                            
+                            // 保存回 LocalStorage
+                            localStorage.setItem('scheduleData', JSON.stringify(wenguData));
+                            
+                            // 重新渲染列表 (条目会消失)
+                            this.renderBackSideData();
+                            
+                            // 记录一次“温故系统”的打卡 (可选，用于自由系统自身的统计)
+                            // 注意：根据最新需求，这里其实是“复习”操作的记录，而不是大按钮的记录
+                            // 但为了数据一致性，这里保持原样，大按钮改为纯跳转。
+                            this.logAction('温故系统');
+                        }
+                    }
+                } catch (e) {
+                    console.error("温故系统打钩失败", e);
+                    alert("操作失败，请检查控制台");
+                }
+            }
+
+            // --- 处理知新系统点击事件 ---
+            handleZhixinCheck(todoItem) {
+                try {
+                    // 触发烟花特效
+                    this.triggerCelebration();
+
+                    // 1. 从 todayToDoList 移除
+                    let zhixinTodos = JSON.parse(localStorage.getItem('todayToDoList') || '[]');
+                    const todoIndex = zhixinTodos.findIndex(i => i.id === todoItem.id);
+                    if (todoIndex === -1) return; // 已经被删除了
+                    
+                    const completedItem = zhixinTodos.splice(todoIndex, 1)[0];
+                    completedItem.completedTimestamp = Date.now();
+                    
+                    // 2. 加入 todayCompletedHistoryList
+                    let historyList = JSON.parse(localStorage.getItem('todayCompletedHistoryList') || '[]');
+                    historyList.push(completedItem);
+                    
+                    // 3. 更新 dailyCompletionStats
+                    let stats = JSON.parse(localStorage.getItem('dailyCompletionStats') || '[]');
+                    const todayStr = this.formatBeijingDate(this.getBeijingDate());
+                    let statEntry = stats.find(s => s.date === todayStr);
+                    if (statEntry) {
+                        statEntry.count += 1;
+                    } else {
+                        stats.push({ date: todayStr, count: 1 });
+                    }
+                    stats.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                    // 4. 【关键】更新 allProgressData 中的 completedTasks
+                    let allProgress = JSON.parse(localStorage.getItem('allProgressData') || '{}');
+                    // 注意：todoItem.subject 是 key (e.g. "Chinese")
+                    if (allProgress[todoItem.subject]) {
+                        const modules = allProgress[todoItem.subject].modules;
+                        const module = modules.find(m => m.internalId === todoItem.moduleInternalId);
+                        if (module) {
+                            // 确保 completedTasks 是数组 (localStorage存的是JSON，读出来是数组)
+                            if (!Array.isArray(module.completedTasks)) module.completedTasks = [];
+                            // 添加课程号 (去重)
+                            if (!module.completedTasks.includes(todoItem.taskNumber)) {
+                                module.completedTasks.push(todoItem.taskNumber);
+                                module.completedTasks.sort((a, b) => a - b);
+                            }
+                        }
+                    }
+
+                    // 5. 统一保存
+                    localStorage.setItem('todayToDoList', JSON.stringify(zhixinTodos));
+                    localStorage.setItem('todayCompletedHistoryList', JSON.stringify(historyList));
+                    localStorage.setItem('dailyCompletionStats', JSON.stringify(stats));
+                    localStorage.setItem('allProgressData', JSON.stringify(allProgress));
+
+                    // 6. 重新渲染
+                    this.renderBackSideData();
+                    
+                    // 7. 记录一次“知新系统”的打卡 (可选)
+                    this.logAction('知新系统');
+
+                } catch (e) {
+                    console.error("知新系统完成操作失败", e);
+                    alert("操作失败，请检查控制台");
+                }
+            }
+
+
+            getBeijingDate() {
+                const now = new Date();
+                const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                return new Date(utc + (3600000 * 8));
+            }
+
+            formatBeijingDate(date) {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+            
+            getWeekKey(dateStr) {
+                const d = new Date(dateStr);
+                d.setHours(0, 0, 0, 0);
+                d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+                var week1 = new Date(d.getFullYear(), 0, 4);
+                return d.getFullYear() + "-W" + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7 + 1);
+            }
+
+            bindEvents() {
+                const r = this.root;
+                if(this.config.mode !== 'multi-tracker') {
+                    r.querySelector('.btn-log-wakeup').onclick = () => this.logAction(); 
+                }
+                
+                r.querySelector('.btn-toggle-manual').onclick = () => {
+                    r.querySelector('.manual-input-box').classList.toggle('hidden');
+                };
+                r.querySelector('.btn-save-manual').onclick = () => this.logManualTime();
+                
+                const toggleBtn = r.querySelector('.btn-toggle-view');
+                
+                DragManager.register(this.container, toggleBtn, {
+                    onClick: () => {
+                        if (this.clickTimer) {
+                            clearTimeout(this.clickTimer);
+                            this.clickTimer = null;
+                            this.onGlobalToggleCallback(!this.isCompact);
+                        } else {
+                            this.clickTimer = setTimeout(() => {
+                                this.clickTimer = null;
+                                this.toggleView();
+                            }, 250);
+                        }
+                    },
+                    onDrop: () => {
+                        const wrapper = document.getElementById('app-wrapper');
+                        const order = Array.from(wrapper.children)
+                            .filter(child => child.id && child.id.includes('dashboard-'))
+                            .map(child => child.id);
+                        localStorage.setItem('morning_dashboard_order', JSON.stringify(order));
+                    }
+                });
+
+                // --- 修改了这里：点击垃圾桶打开删除选项 Modal ---
+                r.querySelector('.btn-clear-data').onclick = () => this.openModal('delete');
+                
+                // 绑定删除选项 Modal 的按钮
+                r.querySelector('.btn-delete-today').onclick = () => this.deleteToday();
+                r.querySelector('.btn-delete-all').onclick = () => this.clearData();
+                r.querySelector('.btn-cancel-delete').onclick = () => this.closeModal('delete');
+                r.querySelector('.modal-backdrop-delete').onclick = () => this.closeModal('delete');
+
+                r.querySelector('.card-streak').onclick = (e) => {
+                    this.openSettingsModal();
+                };
+                
+                r.querySelector('.card-filter').onclick = () => this.openModal('filter');
+                r.querySelector('.btn-close-filter').onclick = () => this.closeModal('filter');
+                r.querySelector('.modal-backdrop').onclick = () => this.closeModal('filter');
+                r.querySelector('.btn-close-data').onclick = () => this.closeModal('data');
+                r.querySelector('.modal-backdrop-data').onclick = () => this.closeModal('data');
+
+                r.querySelector('.btn-tab-heatmap').onclick = (e) => this.switchTab('heatmap', e.target);
+                r.querySelector('.btn-tab-line').onclick = (e) => this.switchTab('line', e.target);
+                r.querySelector('.btn-tab-dist').onclick = (e) => this.switchTab('dist', e.target);
+
+                const presetContainer = r.querySelector('.filter-presets-container');
+                const presets = [7, 14, 30, 90, 180, 0];
+                const labels = ['近1周', '近2周', '近1月', '近3月', '近6月', '全部'];
+                
+                presets.forEach((val, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = `filter-preset-btn py-3 rounded-xl border bg-white text-sm font-medium transition-all ${this.isFilterActive(val) ? 'border-ios-blue text-ios-blue bg-blue-50' : 'border-gray-200 text-gray-600'}`;
+                    btn.textContent = labels[idx];
+                    btn.onclick = () => this.applyFilter(val === 0 ? 'all' : 'days', val);
+                    btn.dataset.filterValue = val; 
+                    presetContainer.appendChild(btn);
+                });
+
+                r.querySelector('.btn-apply-custom').onclick = () => this.applyCustomFilter();
+                r.querySelector('.btn-export').onclick = () => this.downloadExport();
+                r.querySelector('.btn-import').onclick = () => r.querySelector('.input-import-file').click();
+                r.querySelector('.input-import-file').onchange = (e) => this.handleFileSelect(e);
+                r.querySelector('.btn-reset-zoom').onclick = () => this.resetZoom();
+            }
+
+            setupInputs() {
+                const now = this.getBeijingDate();
+                const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+                const dateStr = this.formatBeijingDate(now);
+                this.root.querySelector('.input-manual-time').value = timeStr;
+                this.root.querySelector('.input-manual-date').value = dateStr;
+            }
+
+            updateClock() {
+                const now = this.getBeijingDate();
+                this.elements.clockDisplay.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            }
+
+            updateDateDisplay() {
+                const now = this.getBeijingDate();
+                this.elements.dateDisplay.textContent = now.toLocaleDateString('zh-CN', { weekday: 'long', month: 'long', day: 'numeric' });
+            }
+
+            getFilteredData() {
+                if (this.isBlankMode) return [];
+
+                const now = this.getBeijingDate();
+                let filtered = [...this.data];
+
+                if (this.filter.type !== 'all') {
+                    let startDateStr = '', endDateStr = this.formatBeijingDate(now);
+                    if (this.filter.type === 'days') {
+                        const cutoff = new Date(now);
+                        cutoff.setDate(now.getDate() - this.filter.value);
+                        startDateStr = this.formatBeijingDate(cutoff);
+                    } else if (this.filter.type === 'custom') {
+                        startDateStr = this.filter.start;
+                        endDateStr = this.filter.end;
+                    }
+                    filtered = filtered.filter(item => item.date >= startDateStr && item.date <= endDateStr);
+                }
+
+                if (this.config.mode === 'multi-tracker' && this.currentCategoryFilter !== 'all') {
+                    filtered = filtered.filter(item => item.category === this.currentCategoryFilter);
+                }
+
+                return filtered;
+            }
+
+            renderAllCharts() {
+                const filtered = this.getFilteredData();
+                this.renderStats(filtered);
+                this.renderHeatmap(filtered);
+                if(!this.elements.views.line.classList.contains('hidden')) this.renderLineChart(filtered);
+                if(!this.elements.views.dist.classList.contains('hidden')) this.renderDistChart(filtered);
+            }
+
+            renderStats(data) {
+                if (this.isBlankMode) {
+                    this.elements.streakCount.textContent = '0';
+                    this.elements.avgTime.textContent = '--:--';
+                    this.elements.streakSubInfo.classList.add('hidden');
+                    return;
+                }
+
+                if (this.config.mode === 'multi-tracker') {
+                    if (this.currentCategoryFilter === '知新系统') {
+                        const target = this.settings.zhixinTarget || 20;
+                        const now = this.getBeijingDate();
+                        
+                        const currentDay = now.getDay() || 7; 
+                        const weekStart = new Date(now);
+                        weekStart.setDate(now.getDate() - currentDay + 1);
+                        weekStart.setHours(0,0,0,0);
+                        
+                        let weekSuccessCount = 0;
+                        
+                        for(let i=0; i<currentDay; i++) {
+                            const d = new Date(weekStart);
+                            d.setDate(weekStart.getDate() + i);
+                            const dStr = this.formatBeijingDate(d);
+                            
+                            const dailySum = data
+                                .filter(item => item.date === dStr)
+                                .reduce((acc, curr) => acc + (curr.quantity || 0), 0);
+                                
+                            if (dailySum >= target) weekSuccessCount++;
+                        }
+
+                        this.elements.streakCount.textContent = weekSuccessCount;
+                        this.elements.streakUnit.textContent = "天达标";
+                        this.elements.streakSubInfo.classList.remove('hidden');
+                        this.elements.streakSubInfo.textContent = `本周目标 ${target}/天`;
+
+                        const todayStr = this.formatBeijingDate(now);
+                        const todaySum = data
+                            .filter(item => item.date === todayStr)
+                            .reduce((acc, curr) => acc + (curr.quantity || 0), 0);
+                        
+                        this.elements.avgTime.textContent = `${todaySum}/${target}`;
+                        this.root.querySelector('.label-stat-ref').textContent = '今日进度';
+                        
+                        const remaining = Math.max(0, target - todaySum);
+                        const filterLabel = this.elements.filterLabel || this.root.querySelector('.filter-label-ref');
+                        if(filterLabel) {
+                            if (remaining > 0) {
+                                filterLabel.textContent = `还需 ${remaining}`;
+                                filterLabel.className = "mt-1 text-[10px] text-orange-500 font-bold bg-orange-50 inline-block px-2 py-0.5 rounded-full border border-orange-100 filter-label-ref";
+                            } else {
+                                filterLabel.textContent = `已完成`;
+                                filterLabel.className = "mt-1 text-[10px] text-green-500 font-bold bg-green-50 inline-block px-2 py-0.5 rounded-full border border-green-100 filter-label-ref";
+                            }
+                        }
+                        
+                        this.root.querySelector('.icon-stat-ref').classList.replace('ph-clock', 'ph-chart-bar');
+
+                    } else {
+                        const uniqueDays = new Set(data.map(d => d.date));
+                        this.elements.streakCount.textContent = uniqueDays.size;
+                        this.elements.streakUnit.textContent = "天打卡";
+                        
+                        const infoEl = this.elements.streakSubInfo;
+                        infoEl.classList.remove('hidden');
+                        if (this.currentCategoryFilter === 'all') {
+                            infoEl.textContent = `总记录 ${data.length} 次`;
+                        } else {
+                            // Apply short name in stats info too if needed, but 'category' is stored as full name
+                            // Let's just show what is stored
+                            infoEl.textContent = `${this.currentCategoryFilter} 记录`;
+                        }
+
+                        this.root.querySelector('.icon-stat-ref').classList.replace('ph-chart-bar', 'ph-clock');
+                        this.root.querySelector('.label-stat-ref').textContent = '平均时间';
+
+                        if (data.length === 0) {
+                            this.elements.avgTime.textContent = "--:--";
+                        } else {
+                            const totalMinutes = data.reduce((acc, curr) => {
+                                const [h, m] = curr.time.split(':').map(Number);
+                                return acc + (h * 60 + m);
+                            }, 0);
+                            const avgTotalMins = totalMinutes / data.length;
+                            this.elements.avgTime.textContent = this.formatDecimalTime(avgTotalMins/60);
+                        }
+                        
+                        const filterLabel = this.root.querySelector('.filter-label-ref');
+                        filterLabel.className = "mt-1 text-[10px] text-gray-400 font-medium bg-gray-100/50 inline-block px-2 py-0.5 rounded-full border border-gray-200/50 filter-label-ref";
+                        this.updateFilterLabel();
+                    }
+
+                } else if (this.config.mode === 'counter') {
+                    const limit = this.settings.weeklyLimit || 3;
+                    const allCounts = {};
+                    this.data.forEach(d => {
+                        if (d.isZero) return; 
+                        const week = this.getWeekKey(d.date);
+                        allCounts[week] = (allCounts[week] || 0) + 1;
+                    });
+                    
+                    let successWeeks = 0;
+                    const today = this.getBeijingDate();
+                    const currentWeekKey = this.getWeekKey(this.formatBeijingDate(today));
+                    const allWeeks = new Set(this.data.map(d => this.getWeekKey(d.date)));
+                    
+                    allWeeks.forEach(week => {
+                        const count = allCounts[week] || 0;
+                        if (count <= limit) successWeeks++;
+                    });
+                    
+                    this.elements.streakCount.textContent = successWeeks;
+                    this.elements.streakUnit.textContent = "周达成";
+                    
+                    const currentWeekCount = allCounts[currentWeekKey] || 0;
+                    const remaining = limit - currentWeekCount;
+                    
+                    const infoEl = this.elements.streakSubInfo;
+                    infoEl.classList.remove('hidden');
+                    if (remaining >= 0) {
+                        infoEl.innerHTML = `本周剩余 <span class="text-ios-blue font-bold">${remaining}</span> 次`;
+                    } else {
+                        infoEl.innerHTML = `本周已超 <span class="text-red-500 font-bold">${Math.abs(remaining)}</span> 次`;
+                    }
+                    
+                    const realCount = data.filter(d => !d.isZero).length;
+                    this.elements.avgTime.textContent = realCount;
+
+                } else {
+                    const targetStr = this.settings.targetTime || "07:00";
+                    const [tH, tM] = targetStr.split(':').map(Number);
+                    const limitMins = tH * 60 + tM + 30;
+                    
+                    let successDays = 0;
+                    this.data.forEach(d => {
+                        const [rH, rM] = d.time.split(':').map(Number);
+                        const recordMins = rH * 60 + rM;
+                        if (recordMins <= limitMins) successDays++;
+                    });
+
+                    this.elements.streakCount.textContent = successDays;
+                    this.elements.streakUnit.textContent = "天达成";
+                    
+                    const infoEl = this.elements.streakSubInfo;
+                    infoEl.classList.remove('hidden');
+                    infoEl.innerHTML = `目标 <span class="text-ios-blue font-bold">${targetStr}</span> (+30m)`;
+
+                    if (data.length === 0) {
+                        this.elements.avgTime.textContent = "--:--";
+                    } else {
+                        const totalMinutes = data.reduce((acc, curr) => {
+                            const [h, m] = curr.time.split(':').map(Number);
+                            return acc + (h * 60 + m);
+                        }, 0);
+                        const avgTotalMins = totalMinutes / data.length;
+                        this.elements.avgTime.textContent = this.formatDecimalTime(avgTotalMins/60);
+                    }
+                }
+            }
+
+            renderHeatmap(data) {
+                const container = this.elements.heatmapGrid;
+                const legend = this.elements.heatmapLegend;
+                container.innerHTML = '';
+                legend.innerHTML = '';
+
+                // --- 1. 特殊模式：针对“温故系统”过滤器，加载完整数据并应用Activity+Workload逻辑 ---
+                if (this.config.mode === 'multi-tracker' && this.currentCategoryFilter === '温故系统') {
+                    // 1. 设置图例 (与温故系统保持一致)
+                    legend.innerHTML = `
+                        <div class="flex justify-between w-full text-[10px] text-gray-500">
+                            <div class="flex items-center gap-1">
+                                <span class="mr-1">Activity (Past)</span>
+                                <div class="w-2.5 h-2.5 rounded-[2px] color-scale-green-1"></div>
+                                <div class="w-2.5 h-2.5 rounded-[2px] color-scale-green-4"></div>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="mr-1">Workload (Future)</span>
+                                <div class="w-2.5 h-2.5 rounded-[2px] color-scale-gray-1"></div>
+                                <div class="w-2.5 h-2.5 rounded-[2px] color-scale-gray-4"></div>
+                            </div>
+                        </div>
+                    `;
+
+                    // 2. 加载温故系统数据
+                    let wenguData = [];
+                    try {
+                        const storedData = localStorage.getItem('scheduleData');
+                        if (storedData) {
+                            // 简单 revive 逻辑
+                            wenguData = JSON.parse(storedData).map(item => {
+                                item.initial = new Date(item.initial);
+                                if(item.schedule) item.schedule = item.schedule.map(d => new Date(d));
+                                return item;
+                            });
+                        }
+                    } catch(e) { console.error("Error loading schedule data for heatmap", e); }
+
+                    // 3. 计算 Activity (过去) 和 Workload (未来)
+                    const heatmapActivityData = {};
+                    const heatmapWorkloadData = {};
+                    const now = this.getBeijingDate();
+                    
+                    const pad = n => String(n).padStart(2,'0');
+                    const formatDateKey = date => `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+
+                    wenguData.forEach(item => {
+                        // Activity Logic (Updated to use Group Logic from 5.0)
+                        if (item.reviewLog) {
+                            WENGU_CONSTANTS.reviewGroups.forEach(group => {
+                                // 收集该组内所有有效的打卡日期（去重）
+                                // 这样如果同一组在不同天都有打卡，每一天都会被统计到
+                                // 如果同一组在同一天多次打卡（例如索引0和索引1都在今天完成），只算一次
+                                const uniqueDaysForGroup = new Set();
+                                
+                                group.forEach(idx => {
+                                    const logTime = item.reviewLog[idx];
+                                    if (logTime) {
+                                        const d = new Date(logTime);
+                                        if (!isNaN(d.getTime())) {
+                                            uniqueDaysForGroup.add(formatDateKey(d));
+                                        }
+                                    }
+                                });
+
+                                // 将该组贡献的所有活跃天数加到全局热力图中
+                                uniqueDaysForGroup.forEach(dateKey => {
+                                    heatmapActivityData[dateKey] = (heatmapActivityData[dateKey] || 0) + 1;
+                                });
+                            });
+                        }
+
+                        // Workload Logic (Same as Review System)
+                        WENGU_CONSTANTS.reviewGroups.forEach((group, groupIndex) => {
+                            if (groupIndex === 1 && item.importance === '一般') return;
+                            const isDone = group.every(i => item.reviewed && item.reviewed[i]);
+                            if (!isDone && item.schedule) {
+                                let targetDate = null;
+                                for (const idx of group) {
+                                    if (item.schedule[idx] && item.schedule[idx] > now) {
+                                        targetDate = item.schedule[idx];
+                                        break; 
+                                    }
+                                }
+                                if (targetDate) {
+                                    const key = formatDateKey(targetDate);
+                                    heatmapWorkloadData[key] = (heatmapWorkloadData[key] || 0) + 1;
+                                }
+                            }
+                        });
+                    });
+
+                    // 4. 计算渲染日期范围 (包含未来2周)
+                    let weeksToShow = 40; 
+                    if (this.filter.type === 'days') {
+                        if (this.filter.value <= 30) weeksToShow = 14; 
+                        else if (this.filter.value <= 90) weeksToShow = 26;
+                    }
+                    
+                    const todayStr = this.formatBeijingDate(now);
+                    const endDate = this.getBeijingDate();
+                    // 核心修改：将结束日期向后推2周 (14天) + 补齐到周六
+                    endDate.setDate(endDate.getDate() + 14 + (6 - endDate.getDay())); 
+                    
+                    const startDate = new Date(endDate);
+                    // 倒推总周数 (需要扣除未来的2周，所以总长度要加2周，这里简单处理，保证总格子数)
+                    startDate.setDate(endDate.getDate() - (weeksToShow * 7) + 1);
+
+                    // 5. 渲染网格
+                    for (let i = 0; i < weeksToShow * 7; i++) {
+                        const currentDate = new Date(startDate);
+                        currentDate.setDate(startDate.getDate() + i);
+                        const dateStr = this.formatBeijingDate(currentDate);
+                        const cell = document.createElement('div');
+                        cell.className = 'heatmap-cell';
+                        cell.title = dateStr;
+                        
+                        const isFuture = dateStr > todayStr;
+                        const isToday = dateStr === todayStr;
+
+                        if (isToday) {
+                            cell.style.border = "1px solid #0071E3";
+                        }
+
+                        if (!isFuture) {
+                            // 渲染 Activity (绿色)
+                            const count = heatmapActivityData[dateStr] || 0;
+                            if (count === 0) cell.classList.add('color-scale-green-0');
+                            else if (count <= 2) cell.classList.add('color-scale-green-1');
+                            else if (count <= 4) cell.classList.add('color-scale-green-2');
+                            else if (count <= 6) cell.classList.add('color-scale-green-3');
+                            else cell.classList.add('color-scale-green-4');
+                            if (count > 0) cell.title += ` - 复习 ${count} 次`;
+                        } else {
+                            // 渲染 Workload (灰色)
+                            const count = heatmapWorkloadData[dateStr] || 0;
+                            if (count === 0) cell.classList.add('color-scale-gray-0');
+                            else if (count <= 2) cell.classList.add('color-scale-gray-1');
+                            else if (count <= 4) cell.classList.add('color-scale-gray-2');
+                            else if (count <= 6) cell.classList.add('color-scale-gray-3');
+                            else cell.classList.add('color-scale-gray-4');
+                            if (count > 0) cell.title += ` - 计划 ${count} 项`;
+                        }
+                        
+                        // 温故模式下不绑定拖拽删除逻辑，防止误删计划
+                        container.appendChild(cell);
+                    }
+                    
+                    const view = this.elements.views.heatmap;
+                    requestAnimationFrame(() => { view.scrollLeft = view.scrollWidth; });
+                    return; // 结束温故模式的渲染
+                }
+
+                // --- 2. 常规模式渲染 (保持不变) ---
+                if (this.isBlankMode) {
+                    legend.innerHTML = `<span class="text-[10px] opacity-50">无数据</span>`;
+                }
+                else if (this.config.mode === 'counter') {
+                    legend.innerHTML = `
+                        <span>0次 (完美)</span>
+                        <div class="flex items-center gap-1.5 opacity-70">
+                            <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-600"></div>
+                            <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-500"></div>
+                            <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-400"></div>
+                            <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-300"></div>
+                            <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-200"></div>
+                            <div class="w-2.5 h-2.5 rounded-[3px] bg-red-400"></div>
+                        </div>
+                        <span>>8次 (底线)</span>
+                    `;
+                } else if (this.config.mode === 'multi-tracker') {
+                    if (this.currentCategoryFilter === 'all') {
+                        legend.innerHTML = `
+                            <span>少 (1项)</span>
+                            <div class="flex items-center gap-1.5 opacity-70">
+                                <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-200"></div>
+                                <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-400"></div>
+                                <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-600"></div>
+                            </div>
+                            <span>多 (3项)</span>
+                        `;
+                    } else if (this.currentCategoryFilter === '知新系统') {
+                        legend.innerHTML = `
+                            <span>少</span>
+                            <div class="flex items-center gap-1.5 opacity-70">
+                                <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-200"></div>
+                                <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-300"></div>
+                                <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-400"></div>
+                                <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-500"></div>
+                                <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-600"></div>
+                            </div>
+                            <span>多</span>
+                        `;
+                    } else {
+                        legend.innerHTML = `
+                            <div class="flex items-center gap-2 opacity-70">
+                                <div class="w-2.5 h-2.5 rounded-[3px] bg-gray-200"></div> <span class="text-[10px]">未打卡</span>
+                                <div class="w-2.5 h-2.5 rounded-[3px] bg-blue-500"></div> <span class="text-[10px]">已打卡</span>
+                            </div>
+                        `;
+                    }
+                } else {
+                    legend.innerHTML = `
+                        <span>早起 (5am)</span>
+                        <div class="flex items-center gap-1.5 opacity-70">
+                            <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-600"></div>
+                            <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-500"></div>
+                            <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-400"></div>
+                            <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-300"></div>
+                            <div class="w-2.5 h-2.5 rounded-[3px] bg-emerald-200"></div>
+                        </div>
+                        <span>晚起 (9am+)</span>
+                    `;
+                }
+                
+                let weeksToShow = 40;
+                if (this.filter.type === 'days') {
+                    if (this.filter.value <= 14) weeksToShow = 4;
+                    else if (this.filter.value <= 90) weeksToShow = 14;
+                    else if (this.filter.value <= 180) weeksToShow = 26;
+                } else if (this.filter.type === 'custom') {
+                    const start = new Date(this.filter.start);
+                    const end = new Date(this.filter.end);
+                    const diffWeeks = Math.ceil((end - start) / (1000 * 60 * 60 * 24 * 7));
+                    weeksToShow = Math.max(4, Math.min(52, diffWeeks + 2));
+                }
+
+                const now = this.getBeijingDate();
+                const todayStr = this.formatBeijingDate(now);
+                const endDate = this.getBeijingDate();
+                endDate.setDate(endDate.getDate() + (6 - endDate.getDay())); 
+                const startDate = new Date(endDate);
+                startDate.setDate(endDate.getDate() - (weeksToShow * 7) + 1);
+                
+                const dateMap = {}; 
+                if (!this.isBlankMode) {
+                    data.forEach(d => { 
+                        if (this.config.mode === 'counter') {
+                            if (!dateMap[d.date]) dateMap[d.date] = 0;
+                            if (!d.isZero) dateMap[d.date] += 1;
+                        } else if (this.config.mode === 'multi-tracker') {
+                             if (this.currentCategoryFilter === '知新系统') {
+                                 if (!dateMap[d.date]) dateMap[d.date] = 0;
+                                 dateMap[d.date] += (d.quantity || 0);
+                             } else {
+                                 if (!dateMap[d.date]) dateMap[d.date] = 0;
+                                 dateMap[d.date] += 1;
+                             }
+                        } else {
+                            dateMap[d.date] = d.value;
+                        }
+                    });
+                }
+
+                for (let i = 0; i < weeksToShow * 7; i++) {
+                    const currentDate = new Date(startDate);
+                    currentDate.setDate(startDate.getDate() + i);
+                    const dateStr = this.formatBeijingDate(currentDate);
+                    const cell = document.createElement('div');
+                    cell.className = 'heatmap-cell';
+                    cell.title = dateStr;
+                    cell.dataset.date = dateStr; // Store date for drag interaction
+                    
+                    // --- 绑定拖拽逻辑 ---
+                    if (dateStr <= todayStr) {
+                         this.setupHeatmapDrag(cell, dateStr);
+                    }
+
+                    if (dateStr > todayStr) {
+                        cell.style.visibility = 'hidden';
+                    } else {
+                        if (dateMap[dateStr] !== undefined && !this.isBlankMode) {
+                            const val = dateMap[dateStr];
+                            if (this.config.mode === 'counter') {
+                                if (val === 0) { cell.classList.add('bg-emerald-600'); cell.title += ` - 0 次 (完美)`; }
+                                else if (val <= 2) cell.classList.add('bg-emerald-500');
+                                else if (val <= 4) cell.classList.add('bg-emerald-400');
+                                else if (val <= 6) cell.classList.add('bg-emerald-300');
+                                else if (val <= 8) cell.classList.add('bg-emerald-200');
+                                else cell.classList.add('bg-red-400');
+                                if (val > 0) cell.title += ` - ${val} 次`;
+                            } else if (this.config.mode === 'multi-tracker') {
+                                if (this.currentCategoryFilter === '知新系统') {
+                                    const target = this.settings.zhixinTarget || 20;
+                                    const ratio = val / target;
+                                    
+                                    if (ratio >= 1.5) cell.classList.add('bg-emerald-700'); 
+                                    else if (ratio >= 1.0) cell.classList.add('bg-emerald-600'); 
+                                    else if (ratio >= 0.75) cell.classList.add('bg-emerald-500');
+                                    else if (ratio >= 0.5) cell.classList.add('bg-emerald-400');
+                                    else if (ratio >= 0.25) cell.classList.add('bg-emerald-300');
+                                    else cell.classList.add('bg-emerald-200');
+                                    
+                                    cell.title += ` - 完成 ${val} 个`;
+                                } else if (this.currentCategoryFilter === 'all') {
+                                    if (val >= 3) cell.classList.add('bg-emerald-600');
+                                    else if (val === 2) cell.classList.add('bg-emerald-400');
+                                    else cell.classList.add('bg-emerald-200'); // 1
+                                    cell.title += ` - 完成 ${val} 项`;
+                                } else {
+                                    if (val > 0) {
+                                        cell.classList.add('bg-blue-500');
+                                        cell.title += ` - 已打卡`;
+                                    } else {
+                                        cell.classList.add('bg-gray-100');
+                                    }
+                                }
+                            } else {
+                                if (val <= 6.0) cell.classList.add('bg-emerald-600');
+                                else if (val <= 7.0) cell.classList.add('bg-emerald-500');
+                                else if (val <= 8.0) cell.classList.add('bg-emerald-400');
+                                else if (val <= 9.0) cell.classList.add('bg-emerald-300');
+                                else cell.classList.add('bg-emerald-200');
+                                cell.title += ` - ${this.formatDecimalTime(val)}`;
+                            }
+                        } else { cell.classList.add('bg-gray-100'); }
+                    }
+                    container.appendChild(cell);
+                }
+                const view = this.elements.views.heatmap;
+                requestAnimationFrame(() => { view.scrollLeft = view.scrollWidth; });
+            }
+
+            setupHeatmapDrag(cell, dateStr) {
+                let pressTimer;
+                let ghost;
+                const trashBtn = this.root.querySelector('.btn-clear-data');
+                const root = this.root;
+                const that = this;
+
+                const start = (e) => {
+                    if (e.type === 'mousedown' && e.button !== 0) return;
+                    
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                    pressTimer = setTimeout(() => {
+                        // 创建幽灵元素
+                        ghost = cell.cloneNode(true);
+                        ghost.classList.add('ghost-cell');
+                        ghost.style.left = clientX - 10 + 'px';
+                        ghost.style.top = clientY - 10 + 'px';
+                        document.body.appendChild(ghost);
+
+                        // 禁用 dashboard 拖拽防止冲突
+                        const toggleBtn = root.querySelector('.btn-toggle-view');
+                        toggleBtn.style.pointerEvents = 'none';
+
+                        // 高亮垃圾桶
+                        trashBtn.classList.add('trash-highlight');
+                        if (navigator.vibrate) navigator.vibrate(50);
+
+                        const move = (em) => {
+                            em.preventDefault(); // 防止滚动
+                            const cx = em.touches ? em.touches[0].clientX : em.clientX;
+                            const cy = em.touches ? em.touches[0].clientY : em.clientY;
+                            if (ghost) {
+                                ghost.style.left = cx - 10 + 'px';
+                                ghost.style.top = cy - 10 + 'px';
+                                
+                                // 检测碰撞
+                                const trashRect = trashBtn.getBoundingClientRect();
+                                if (cx >= trashRect.left && cx <= trashRect.right && cy >= trashRect.top && cy <= trashRect.bottom) {
+                                    trashBtn.style.transform = 'scale(1.4)';
+                                } else {
+                                    trashBtn.style.transform = 'scale(1.2)';
+                                }
+                            }
+                        };
+
+                        const end = (ee) => {
+                            window.removeEventListener('mousemove', move);
+                            window.removeEventListener('touchmove', move);
+                            window.removeEventListener('mouseup', end);
+                            window.removeEventListener('touchend', end);
+                            
+                            // 恢复 UI
+                            toggleBtn.style.pointerEvents = '';
+                            trashBtn.classList.remove('trash-highlight');
+                            trashBtn.style.transform = '';
+
+                            if (ghost) {
+                                const cx = ee.changedTouches ? ee.changedTouches[0].clientX : ee.clientX;
+                                const cy = ee.changedTouches ? ee.changedTouches[0].clientY : ee.clientY;
+                                const trashRect = trashBtn.getBoundingClientRect();
+
+                                if (cx >= trashRect.left && cx <= trashRect.right && cy >= trashRect.top && cy <= trashRect.bottom) {
+                                    // 触发删除
+                                    if(confirm(`确定删除 ${dateStr} 的记录吗?`)) {
+                                        that.deleteDate(dateStr);
+                                    }
+                                }
+
+                                ghost.remove();
+                                ghost = null;
+                            }
+                        };
+
+                        window.addEventListener('mousemove', move, {passive: false});
+                        window.addEventListener('touchmove', move, {passive: false});
+                        window.addEventListener('mouseup', end);
+                        window.addEventListener('touchend', end);
+
+                    }, 400); // 400ms 长按触发
+                };
+
+                const cancel = () => {
+                    if (pressTimer) clearTimeout(pressTimer);
+                };
+
+                cell.addEventListener('mousedown', start);
+                cell.addEventListener('touchstart', start, {passive: false});
+                cell.addEventListener('mouseup', cancel);
+                cell.addEventListener('touchend', cancel);
+                cell.addEventListener('mouseleave', cancel);
+                cell.addEventListener('touchcancel', cancel);
+            }
+
+            deleteDate(dateStr) {
+                // 过滤掉那一天的数据
+                const initialLength = this.data.length;
+                this.data = this.data.filter(item => item.date !== dateStr);
+                
+                if (this.data.length < initialLength) {
+                    localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+                    this.renderAllCharts();
+                    // 这里可以加一个简单的 Toast 提示，但这里先省略
+                } else {
+                    alert("该日期没有记录");
+                }
+            }
+
+            deleteToday() {
+                const todayStr = this.formatBeijingDate(this.getBeijingDate());
+                this.deleteDate(todayStr);
+                this.closeModal('delete');
+            }
+
+            renderLineChart(data) {
+                const ctx = this.root.querySelector('.canvas-trend').getContext('2d');
+                
+                // Initialize chart basics
+                if (this.trendChart) this.trendChart.destroy();
+                if (data.length === 0 && this.currentCategoryFilter !== '温故系统') { // Wengu has separate data source
+                    this.trendChart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [] }, options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } } });
+                    return;
+                }
+                
+                let labels, dataPoints, labelName, yAxisConfig;
+                
+                // ----------------------------------------------------
+                // --- CUSTOM LOGIC FOR WENGU SYSTEM TREND ---
+                // ----------------------------------------------------
+                if (this.config.mode === 'multi-tracker' && this.currentCategoryFilter === '温故系统') {
+                    const dailyReviewCounts = {};
+                    try {
+                        const storedData = localStorage.getItem('scheduleData');
+                        if (storedData) {
+                            const wenguData = JSON.parse(storedData);
+                            
+                            // Define Groups Helper (Indices -> Group Index)
+                            const getGroupIndex = (idx) => {
+                                const groups = WENGU_CONSTANTS.reviewGroups;
+                                for(let i=0; i<groups.length; i++) {
+                                    if(groups[i].includes(Number(idx))) return i;
+                                }
+                                return -1;
+                            };
+
+                            wenguData.forEach(item => {
+                                if (item.reviewLog) {
+                                    const itemDailyGroups = {}; // dateStr -> Set of groupIndices
+
+                                    // Iterate all log entries for this item
+                                    Object.entries(item.reviewLog).forEach(([idxStr, ts]) => {
+                                        if (ts) {
+                                            const idx = parseInt(idxStr);
+                                            const d = new Date(ts);
+                                            const dateStr = this.formatBeijingDate(d);
+                                            
+                                            // Find which group this index belongs to
+                                            const groupIdx = getGroupIndex(idx);
+                                            
+                                            if (groupIdx !== -1) {
+                                                if (!itemDailyGroups[dateStr]) {
+                                                    itemDailyGroups[dateStr] = new Set();
+                                                }
+                                                // Add group index to Set (deduplicates indices in same group)
+                                                itemDailyGroups[dateStr].add(groupIdx);
+                                            }
+                                        }
+                                    });
+                                    
+                                    // Aggregate counts: Add unique groups count for this item to daily total
+                                    Object.entries(itemDailyGroups).forEach(([dateStr, groupSet]) => {
+                                        dailyReviewCounts[dateStr] = (dailyReviewCounts[dateStr] || 0) + groupSet.size;
+                                    });
+                                }
+                            });
+                        }
+                    } catch (e) { console.error("Error loading Wengu trend data", e); }
+
+                    let sortedDates = Object.keys(dailyReviewCounts).sort();
+
+                    // Apply Time Filter (this.filter) to Wengu data
+                    const now = this.getBeijingDate();
+                    let startDateStr = '', endDateStr = this.formatBeijingDate(now);
+                    
+                    if (this.filter.type === 'days') {
+                        const cutoff = new Date(now);
+                        cutoff.setDate(now.getDate() - this.filter.value);
+                        startDateStr = this.formatBeijingDate(cutoff);
+                        sortedDates = sortedDates.filter(d => d >= startDateStr && d <= endDateStr);
+                    } else if (this.filter.type === 'custom') {
+                         sortedDates = sortedDates.filter(d => d >= this.filter.start && d <= this.filter.end);
+                    }
+
+                    labels = sortedDates.map(d => d.slice(5)); // Remove Year
+                    dataPoints = sortedDates.map(d => dailyReviewCounts[d]);
+                    labelName = '每日复习量';
+                    yAxisConfig = { 
+                        beginAtZero: true, 
+                        ticks: { stepSize: 5, font: { size: 10 }, color: '#86868B' }, 
+                        grid: { color: 'rgba(0,0,0,0.05)', borderDash: [5, 5] }, 
+                        border: { display: false } 
+                    };
+                } 
+                // ----------------------------------------------------
+                // --- EXISTING LOGIC FOR ZHIXIN SYSTEM TREND ---
+                // ----------------------------------------------------
+                else if (this.config.mode === 'multi-tracker' && this.currentCategoryFilter === '知新系统') {
+                    const daySums = {};
+                    data.forEach(d => {
+                        if(!daySums[d.date]) daySums[d.date] = 0;
+                        daySums[d.date] += (d.quantity || 0);
+                    });
+                    const sortedDates = Object.keys(daySums).sort();
+                    labels = sortedDates.map(d => d.slice(5));
+                    dataPoints = sortedDates.map(d => daySums[d]);
+                    labelName = '完成数量';
+                    yAxisConfig = { beginAtZero: true, ticks: { stepSize: 5, font: { size: 10 }, color: '#86868B' }, grid: { color: 'rgba(0,0,0,0.05)', borderDash: [5, 5] }, border: { display: false } };
+                } 
+                // ----------------------------------------------------
+                // --- EXISTING LOGIC FOR COUNTER MODE ---
+                // ----------------------------------------------------
+                else if (this.config.mode === 'counter') {
+                     const counts = {};
+                     data.forEach(d => { if(!d.isZero) { if(!counts[d.date]) counts[d.date] = 0; counts[d.date]++; } });
+                     const sortedDates = Object.keys(counts).sort();
+                     labels = sortedDates.map(d => d.slice(5));
+                     dataPoints = sortedDates.map(d => counts[d]);
+                     labelName = '次数';
+                     yAxisConfig = { reverse: true, beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 }, color: '#86868B' }, grid: { color: 'rgba(0,0,0,0.05)', borderDash: [5, 5] }, border: { display: false } }; 
+                } 
+                // ----------------------------------------------------
+                // --- EXISTING DEFAULT LOGIC (AVG TIME) ---
+                // ----------------------------------------------------
+                else {
+                     const daySums = {};
+                     const dayCounts = {};
+                     data.forEach(d => {
+                        if(!daySums[d.date]) { daySums[d.date] = 0; dayCounts[d.date] = 0; }
+                        daySums[d.date] += d.value; 
+                        dayCounts[d.date] += 1;
+                     });
+                     const sortedDates = Object.keys(daySums).sort();
+                     labels = sortedDates.map(d => d.slice(5));
+                     dataPoints = sortedDates.map(d => daySums[d] / dayCounts[d]);
+                     labelName = '平均打卡时间';
+                     yAxisConfig = { suggestedMin: 6, suggestedMax: 24, reverse: true, ticks: { callback: val => this.formatDecimalTime(val), font: { size: 10 }, stepSize: 2, color: '#86868B' }, grid: { color: 'rgba(0,0,0,0.05)', borderDash: [5, 5] }, border: { display: false } };
+                }
+
+                const limit = labels.length <= 14 ? labels.length : 10;
+                const resetBtn = this.root.querySelector('.btn-reset-zoom');
+                
+                let chartColor = '#34C759';
+                if (this.config.mode === 'multi-tracker') {
+                     if (this.currentCategoryFilter === 'Anki') chartColor = '#3B82F6';
+                     else if (this.currentCategoryFilter === '温故系统') chartColor = '#A855F7';
+                     else if (this.currentCategoryFilter === '知新系统') chartColor = '#F97316';
+                }
+
+                this.trendChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: labels, datasets: [{ label: labelName, data: dataPoints, borderColor: chartColor, backgroundColor: chartColor, borderWidth: 1.5, pointBackgroundColor: '#FFFFFF', pointBorderColor: chartColor, pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6, showLine: true, tension: 0.3 }] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.raw}` } }, zoom: { pan: { enabled: true, mode: 'xy', onPanComplete: () => { resetBtn.classList.remove('hidden'); }}, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy', onZoomComplete: () => { resetBtn.classList.remove('hidden'); }} } },
+                        scales: { y: yAxisConfig, x: { grid: { display: true, color: 'rgba(0,0,0,0.02)' }, ticks: { font: { size: 10 }, autoSkip: true, maxTicksLimit: limit }, border: { display: false } } }
+                    }
+                });
+            }
+
+            renderDistChart(data) {
+                const ctx = this.root.querySelector('.canvas-dist').getContext('2d');
+                
+                // --- 1. SPECIAL CASE: Wengu System Forecast (Imported Logic from Wengu 5.0) ---
+                if (this.config.mode === 'multi-tracker' && this.currentCategoryFilter === '温故系统') {
+                    // Initialize forecast array
+                    const now = this.getBeijingDate();
+                    const forecastCounts = Array(7).fill(0);
+                    const forecastDates = Array(7).fill(0).map((_, i) => {
+                        const d = new Date(now);
+                        d.setDate(now.getDate() + i + 1);
+                        d.setHours(0,0,0,0);
+                        return d;
+                    });
+                    
+                    // Load raw Wengu data
+                    let wenguData = [];
+                    try {
+                        const storedData = localStorage.getItem('scheduleData');
+                        if (storedData) {
+                            wenguData = JSON.parse(storedData).map(item => {
+                                item.initial = new Date(item.initial);
+                                if(item.schedule) item.schedule = item.schedule.map(d => new Date(d));
+                                return item;
+                            });
+                        }
+                    } catch(e) { console.error("Error loading for forecast", e); }
+
+                    // Apply the exact forecast logic from Wengu System 5.0
+                    wenguData.forEach(item => {
+                        WENGU_CONSTANTS.reviewGroups.forEach((group, index) => {
+                             // Skip "General" importance in group 1 (similar to 5.0 logic)
+                             if (item.importance === '一般' && index === 1) {
+                                 // skip
+                             } else {
+                                 const isDone = group.every(i => item.reviewed && item.reviewed[i]);
+                                 if (!isDone) {
+                                     group.forEach(subIndex => {
+                                         const scheduleDate = item.schedule && item.schedule[subIndex];
+                                         // Check if scheduled date exists, is valid, and NOT yet reviewed
+                                         if (scheduleDate && !isNaN(scheduleDate.getTime()) && !(item.reviewed && item.reviewed[subIndex])) {
+                                             forecastDates.forEach((fDay, fIndex) => {
+                                                 if (scheduleDate.getDate() === fDay.getDate() && 
+                                                     scheduleDate.getMonth() === fDay.getMonth() && 
+                                                     scheduleDate.getFullYear() === fDay.getFullYear()) {
+                                                     forecastCounts[fIndex]++;
+                                                 }
+                                             });
+                                         }
+                                     });
+                                 }
+                             }
+                        });
+                    });
+
+                    // Update UI caption
+                    const caption = this.root.querySelector('.chart-caption-ref');
+                    if(caption) caption.textContent = "未来7日复习量预测";
+
+                    if (this.distChart) this.distChart.destroy();
+                    
+                    // Render Bar Chart using the calculated forecast data
+                    const labels = forecastDates.map((d, i) => `+${i+1}天`);
+                    
+                    // Custom Plugin for Data Labels on Top
+                    const dataLabelPlugin = {
+                        id: 'dataLabelPlugin',
+                        afterDatasetsDraw(chart) {
+                            const { ctx } = chart;
+                            chart.data.datasets.forEach((dataset, i) => {
+                                const meta = chart.getDatasetMeta(i);
+                                meta.data.forEach((bar, index) => {
+                                    const value = dataset.data[index];
+                                    if (value > 0) {
+                                        ctx.fillStyle = '#86868B'; // Gray text for label
+                                        ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                                        ctx.textAlign = 'center';
+                                        ctx.textBaseline = 'bottom';
+                                        ctx.fillText(value, bar.x, bar.y - 4);
+                                    }
+                                });
+                            });
+                        }
+                    };
+
+                    this.distChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: { 
+                            labels: labels, 
+                            datasets: [{ 
+                                label: '待复习项', 
+                                data: forecastCounts, 
+                                backgroundColor: '#0071E3', // Blue color as requested
+                                borderRadius: 4, 
+                                borderSkipped: false,
+                                barThickness: 20 // Thinner bars
+                            }] 
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            plugins: { legend: { display: false } }, 
+                            scales: { 
+                                y: { 
+                                    beginAtZero: true, 
+                                    display: false, 
+                                    grid: {display: false},
+                                    suggestedMax: 12 // Scale so small numbers don't hit top
+                                }, 
+                                x: { grid: { display: false }, ticks: { font: { size: 10 } } } 
+                            } 
+                        },
+                        plugins: [dataLabelPlugin]
+                    });
+                    
+                    return; // Stop here, do not render regular distribution
+                }
+
+                // --- 2. Normal Logic (Time Distribution) ---
+                // Reset caption
+                const caption = this.root.querySelector('.chart-caption-ref');
+                if(caption) caption.textContent = "寻找你的规律";
+
+                if (data.length === 0) {
+                    if (this.distChart) this.distChart.destroy();
+                    this.distChart = new Chart(ctx, { type: 'bar', data: { labels: [], datasets: [] }, options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } } });
+                    return;
+                }
+                
+                let startHour = 0, endHour = 24, step = 1;
+                const bins = [];
+                for(let i = startHour; i < endHour; i += step) bins.push({ val: i, count: 0, label: `${i}:00` });
+
+                data.forEach(d => {
+                    if (this.config.mode === 'counter' && d.isZero) return;
+                    let val = Math.floor(d.value);
+                    if (val < startHour) val = startHour; if (val >= endHour) val = endHour - step;
+                    const bin = bins.find(b => Math.abs(b.val - val) < 0.1);
+                    if (bin) bin.count++;
+                });
+                
+                const labels = bins.map(b => b.label);
+                const chartData = bins.map(b => b.count);
+
+                if (this.distChart) this.distChart.destroy();
+                let barColor = '#0071E3';
+                if (this.config.mode === 'multi-tracker') {
+                     if (this.currentCategoryFilter === 'Anki') barColor = '#3B82F6';
+                     else if (this.currentCategoryFilter === '温故系统') barColor = '#A855F7';
+                     else if (this.currentCategoryFilter === '知新系统') barColor = '#F97316';
+                     else barColor = '#34C759'; 
+                }
+
+                this.distChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: labels, datasets: [{ label: '次数', data: chartData, backgroundColor: chartData.map(val => val === Math.max(...chartData) ? barColor : (barColor + '4D')), borderRadius: 4, borderSkipped: false }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, display: false }, x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true } } } }
+                });
+            }
+
+            logAction(category = null) { 
+                const now = this.getBeijingDate();
+                
+                // --- MODIFIED: Direct +1 click for Zhixin, no modal ---
+                if (this.config.mode === 'multi-tracker' && category === '知新系统') {
+                    // Record quantity 1 directly
+                    this.saveEntry(now, false, category, 1);
+                    // --- SYNC FEATURE ---
+                    if (this.settings.syncCharts) {
+                        this.currentCategoryFilter = category;
+                        this.updateFilterButtonsUI(); // Replaced select value update with UI helper
+                        this.renderAllCharts(); // Ensure re-render after sync
+                    }
+                    return;
+                }
+                // -----------------------------------------------------
+
+                if (this.config.mode === 'counter') {
+                    const dateStr = this.formatBeijingDate(now);
+                    const todayEntries = this.data.filter(d => d.date === dateStr);
+                    const hasRealEntry = todayEntries.some(d => !d.isZero);
+
+                    if (todayEntries.length === 0 && !hasRealEntry) {
+                        this.saveEntry(now, true);
+                    } else {
+                        this.saveEntry(now, false);
+                    }
+                } else if (this.config.mode === 'multi-tracker') {
+                    if (category) {
+                        this.saveEntry(now, false, category);
+                        // --- SYNC FEATURE ---
+                        if (this.settings.syncCharts) {
+                            this.currentCategoryFilter = category;
+                            this.updateFilterButtonsUI(); // Replaced select value update with UI helper
+                            this.renderAllCharts(); // Ensure re-render after sync
+                        }
+                    }
+                } else {
+                    this.saveEntry(now); 
+                }
+            }
+            
+            logManualTime() {
+                const timeVal = this.root.querySelector('.input-manual-time').value; 
+                const dateVal = this.root.querySelector('.input-manual-date').value;
+                const catVal = this.root.querySelector('.input-manual-category').value; 
+                
+                if (!timeVal) return;
+                const [h, m] = timeVal.split(':');
+                let dateObj = this.getBeijingDate();
+                if (dateVal) {
+                    const parts = dateVal.split('-');
+                    dateObj.setFullYear(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                }
+                dateObj.setHours(parseInt(h), parseInt(m), 0, 0);
+                
+                if (this.config.mode === 'multi-tracker') {
+                    if (catVal === '知新系统') {
+                         const countStr = prompt("请输入补签的数量 (默认为1):", "1");
+                         const count = parseInt(countStr);
+                         if (!isNaN(count) && count > 0) {
+                             this.saveEntry(dateObj, false, catVal, count);
+                         } else if (countStr === null) {
+                             // cancelled
+                         } else {
+                             // default fallback
+                             this.saveEntry(dateObj, false, catVal, 1);
+                         }
+                    } else {
+                        this.saveEntry(dateObj, false, catVal);
+                    }
+                } else {
+                    this.saveEntry(dateObj, false);
+                }
+                this.root.querySelector('.manual-input-box').classList.add('hidden');
+            }
+
+            saveEntry(dateObj, isZeroRecord = false, category = null, quantity = 0) {
+                const dateStr = this.formatBeijingDate(dateObj);
+                const timeStr = `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+                const val = dateObj.getHours() + dateObj.getMinutes() / 60;
+                
+                const entry = { date: dateStr, time: timeStr, value: val, timestamp: dateObj.getTime(), isZero: isZeroRecord };
+                if (category) entry.category = category;
+                if (quantity > 0) entry.quantity = quantity; 
+                
+                if (this.config.mode === 'counter' || this.config.mode === 'multi-tracker') {
+                    this.data.push(entry);
+                } else {
+                    const existingIndex = this.data.findIndex(item => item.date === dateStr);
+                    if (existingIndex > -1) {
+                        if(!confirm(`覆盖 ${dateStr} 的记录?`)) return;
+                        this.data[existingIndex] = entry;
+                    } else {
+                        this.data.push(entry);
+                    }
+                }
+                this.data.sort((a, b) => a.timestamp - b.timestamp);
+                localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+                this.renderAllCharts();
+            }
+
+            setMode(shouldBeCompact) {
+                if (this.isCompact === shouldBeCompact) return;
+                this.isCompact = shouldBeCompact;
+                
+                // 保存视图状态到 localStorage
+                localStorage.setItem(this.storageKeyViewState, JSON.stringify(this.isCompact));
+
+                const toggleIcon = this.root.querySelector('.icon-toggle');
+                
+                if (this.isCompact) {
+                    this.root.classList.add('mode-compact');
+                    toggleIcon.classList.replace('ph-arrows-in-simple', 'ph-arrows-out-simple');
+                } else {
+                    this.root.classList.remove('mode-compact');
+                    toggleIcon.classList.replace('ph-arrows-out-simple', 'ph-arrows-in-simple');
+                    setTimeout(() => {
+                         if (!this.elements.views.line.classList.contains('hidden')) {
+                             this.renderLineChart(this.getFilteredData());
+                         }
+                    }, 300);
+                }
+                this.onToggleCallback(this.instanceId, this.isCompact);
+            }
+
+            toggleView() { this.setMode(!this.isCompact); }
+
+            clearData() {
+                if(confirm("确定清空此表的所有数据?")) {
+                    localStorage.removeItem(this.storageKey);
+                    this.data = [];
+                    this.renderAllCharts();
+                    this.closeModal('delete');
+                }
+            }
+
+            openSettingsModal() {
+                this.openModal('data');
+                
+                const container = this.elements.settingsContainer;
+                container.classList.remove('hidden');
+                
+                if (this.config.mode === 'counter') {
+                    container.innerHTML = `
+                        <label class="text-xs font-semibold text-ios-subtext uppercase tracking-wider block">每周目标设置</label>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-gray-600">每周允许</span>
+                            <input type="number" id="settingInput" class="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1 text-center text-sm focus:border-ios-blue outline-none" value="${this.settings.weeklyLimit || 3}">
+                            <span class="text-sm text-gray-600">次</span>
+                            <button id="saveSettingsBtn" class="ml-auto bg-ios-blue text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600 transition-colors">保存</button>
+                        </div>
+                        <p class="text-[10px] text-gray-400">设置每周最大允许次数，超出会以红色显示。</p>
+                    `;
+                } else if (this.config.mode === 'multi-tracker') {
+                     // Added Sync Toggle
+                     const isSync = this.settings.syncCharts || false;
+                     container.innerHTML = `
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-xs font-semibold text-ios-subtext uppercase tracking-wider block">知新系统每日目标</label>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <span class="text-sm text-gray-600">每日计划</span>
+                                    <input type="number" id="settingInput" class="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1 text-center text-sm focus:border-ios-blue outline-none" value="${this.settings.zhixinTarget || 20}">
+                                    <span class="text-sm text-gray-600">个</span>
+                                    <button id="saveSettingsBtn" class="ml-auto bg-ios-blue text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600 transition-colors">保存</button>
+                                </div>
+                                <p class="text-[10px] text-gray-400 mt-1">设置知新系统每天需要完成的新增数量。</p>
+                            </div>
+                            
+                            <div class="pt-4 border-t border-gray-100">
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="text-xs font-semibold text-ios-subtext uppercase tracking-wider">图表跟随记录切换</label>
+                                    <button id="btnToggleSync" class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isSync ? 'bg-green-500' : 'bg-gray-200'}">
+                                        <span class="translate-x-1 inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isSync ? 'translate-x-6' : 'translate-x-1'}"></span>
+                                    </button>
+                                </div>
+                                <p class="text-[10px] text-gray-400">点击打卡按钮时，自动切换右侧图表至对应项目。</p>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Bind Toggle Sync
+                    const toggleBtn = container.querySelector('#btnToggleSync');
+                    if(toggleBtn) {
+                        toggleBtn.onclick = () => {
+                            this.settings.syncCharts = !this.settings.syncCharts;
+                            // Update UI
+                            const nowSync = this.settings.syncCharts;
+                            toggleBtn.className = `relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${nowSync ? 'bg-green-500' : 'bg-gray-200'}`;
+                            toggleBtn.querySelector('span').className = `translate-x-1 inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${nowSync ? 'translate-x-6' : 'translate-x-1'}`;
+                            
+                            localStorage.setItem(this.storageKeySettings, JSON.stringify(this.settings));
+                        };
+                    }
+
+                } else {
+                    container.innerHTML = `
+                        <label class="text-xs font-semibold text-ios-subtext uppercase tracking-wider block">起床目标设置</label>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-gray-600">目标时间</span>
+                            <input type="time" id="settingInput" class="bg-white border border-gray-200 rounded-lg px-2 py-1 text-center text-sm focus:border-ios-blue outline-none" value="${this.settings.targetTime || '07:00'}">
+                            <button id="saveSettingsBtn" class="ml-auto bg-ios-blue text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600 transition-colors">保存</button>
+                        </div>
+                        <p class="text-[10px] text-gray-400">晚于目标30分钟内仍算成功。</p>
+                    `;
+                }
+                
+                const btn = container.querySelector('#saveSettingsBtn');
+                if(btn) {
+                    btn.onclick = () => {
+                        const inputVal = container.querySelector('#settingInput').value;
+                        if (this.config.mode === 'counter') {
+                            const val = parseInt(inputVal);
+                            if (val >= 0) {
+                                this.settings.weeklyLimit = val;
+                                localStorage.setItem(this.storageKeySettings, JSON.stringify(this.settings));
+                                this.renderStats(this.getFilteredData()); 
+                                this.closeModal('data'); 
+                            }
+                        } else if (this.config.mode === 'multi-tracker') {
+                            const val = parseInt(inputVal);
+                            if (val > 0) {
+                                this.settings.zhixinTarget = val;
+                                localStorage.setItem(this.storageKeySettings, JSON.stringify(this.settings));
+                                this.renderStats(this.getFilteredData());
+                                this.renderAllCharts(); 
+                                this.closeModal('data');
+                            }
+                        } else if (this.config.mode === 'wakeup') {
+                            if (inputVal) {
+                                this.settings.targetTime = inputVal;
+                                localStorage.setItem(this.storageKeySettings, JSON.stringify(this.settings));
+                                this.renderStats(this.getFilteredData());
+                                this.closeModal('data');
+                            }
+                        }
+                    };
+                }
+            }
+
+            openModal(type) {
+                this.elements.modals[type].classList.remove('pointer-events-none', 'opacity-0');
+                this.elements.modals[type+'Content'].classList.remove('scale-95');
+                this.elements.modals[type+'Content'].classList.add('scale-100');
+                if(type === 'filter') this.refreshFilterButtons();
+            }
+            closeModal(type) {
+                this.elements.modals[type].classList.add('pointer-events-none', 'opacity-0');
+                this.elements.modals[type+'Content'].classList.remove('scale-100');
+                this.elements.modals[type+'Content'].classList.add('scale-95');
+            }
+
+            switchTab(tabName, btnElement) {
+                Object.values(this.elements.views).forEach(el => el.classList.add('hidden'));
+                this.elements.views[tabName].classList.remove('hidden');
+                
+                const bg = this.root.querySelector('.segment-bg-ref');
+                bg.style.width = `${btnElement.offsetWidth}px`;
+                bg.style.transform = `translateX(${btnElement.offsetLeft}px)`;
+                
+                this.renderAllCharts();
+            }
+
+            isFilterActive(val) {
+                if (this.filter.type === 'all') return true;
+                if (this.filter.type === 'days' && this.filter.value === val) return true;
+                return false;
+            }
+            
+            refreshFilterButtons() {
+                const btns = this.root.querySelectorAll('.filter-preset-btn');
+                btns.forEach(btn => {
+                    const val = parseInt(btn.dataset.filterValue);
+                    if (this.isFilterActive(val)) {
+                        btn.className = 'filter-preset-btn py-3 rounded-xl border bg-blue-50 text-ios-blue border-ios-blue text-sm font-medium transition-all';
+                    } else {
+                        btn.className = 'filter-preset-btn py-3 rounded-xl border bg-white text-gray-600 border-gray-200 text-sm font-medium transition-all';
+                    }
+                });
+                
+                if (this.filter.type === 'custom') {
+                    this.root.querySelector('.input-filter-start').value = this.filter.start;
+                    this.root.querySelector('.input-filter-end').value = this.filter.end;
+                }
+            }
+
+            applyFilter(type, value) {
+                this.filter = { type, value };
+                this.saveFilter();
+            }
+
+            applyCustomFilter() {
+                const start = this.root.querySelector('.input-filter-start').value;
+                const end = this.root.querySelector('.input-filter-end').value;
+                if (!start || !end) return alert("请选择日期");
+                if (start > end) return alert("日期无效");
+                this.filter = { type: 'custom', start, end };
+                this.saveFilter();
+            }
+
+            saveFilter() {
+                localStorage.setItem(this.storageKeyFilter, JSON.stringify(this.filter));
+                this.updateFilterLabel();
+                this.renderAllCharts();
+                this.closeModal('filter');
+            }
+
+            updateFilterLabel() {
+                let text = '';
+                if (this.filter.type === 'all') text = '全部记录';
+                else if (this.filter.type === 'days') {
+                    if (this.filter.value >= 30) text = `近${Math.floor(this.filter.value/30)}月`;
+                    else text = `近${this.filter.value}天`;
+                } else text = '自定义';
+                this.elements.filterLabel.textContent = text;
+            }
+
+            formatDecimalTime(val) {
+                const h = Math.floor(val);
+                const m = Math.round((val - h) * 60);
+                return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+            }
+            resetZoom() {
+                if (this.trendChart) { 
+                    this.trendChart.resetZoom(); 
+                    this.root.querySelector('.btn-reset-zoom').classList.add('hidden'); 
+                }
+            }
+            downloadExport() {
+                const blob = new Blob([JSON.stringify({wakeUpRecords: this.data}, null, 2)], {type : 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `${this.config.title}_backup.json`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            }
+            handleFileSelect(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const data = JSON.parse(ev.target.result);
+                        const records = data.wakeUpRecords || data;
+                        if(confirm(`导入数据到 ${this.config.title}?`)) {
+                             const map = new Map(this.data.map(i=>[i.date,i]));
+                            records.forEach(i=>{
+                                if(i.date) {
+                                    const parts = i.date.split(/[-/]/);
+                                    if(parts.length === 3) {
+                                        const y = parts[0];
+                                        const m = parts[1].padStart(2,'0');
+                                        const d = parts[2].padStart(2,'0');
+                                        const fixedDate = `${y}-${m}-${d}`;
+                                        i.date = fixedDate;
+                                        if (!i.value && i.time) {
+                                            const [th, tm] = i.time.split(':').map(Number);
+                                            i.value = th + tm / 60;
+                                        }
+                                        if (this.config.mode === 'counter' || this.config.mode === 'multi-tracker') {
+                                            this.data.push(i);
+                                        } else {
+                                            map.set(fixedDate, i);
+                                        }
+                                    }
+                                }
+                            });
+                            if (this.config.mode === 'wakeup') {
+                                this.data = Array.from(map.values());
+                            }
+                            this.data.sort((a,b)=>a.timestamp - b.timestamp);
+                            localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+                            this.renderAllCharts();
+                            this.closeModal('data');
+                        }
+                    } catch(err) { alert("Format Error"); }
+                    e.target.value = '';
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // --- Main App Coordinator ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const wrapper = document.getElementById('app-wrapper');
+            
+            const savedOrder = JSON.parse(localStorage.getItem('morning_dashboard_order'));
+            if (savedOrder && Array.isArray(savedOrder)) {
+                savedOrder.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        wrapper.appendChild(el); 
+                    }
+                });
+            }
+
+            const container1 = document.getElementById('dashboard-1-container');
+            const container2 = document.getElementById('dashboard-2-container');
+            const container3 = document.getElementById('dashboard-3-container'); 
+            
+            const state = {
+                dashboard1Compact: false,
+                dashboard2Compact: false,
+                dashboard3Compact: false 
+            };
+
+            function updateLayout(instanceId, isCompact) {
+                const rect1First = container1.getBoundingClientRect();
+                const rect2First = container2.getBoundingClientRect();
+                const rect3First = container3.getBoundingClientRect(); 
+
+                if (instanceId === 1) state.dashboard1Compact = isCompact;
+                if (instanceId === 2) state.dashboard2Compact = isCompact;
+                if (instanceId === 3) state.dashboard3Compact = isCompact; 
+
+                wrapper.className = 'w-full flex flex-wrap items-start justify-center gap-6 min-h-[90vh] content-center p-4';
+
+                const updateContainerClass = (container, isC) => {
+                    if (isC) {
+                        container.classList.remove('w-full', 'max-w-5xl');
+                        container.classList.add('w-auto');
+                    } else {
+                        container.classList.remove('w-auto');
+                        container.classList.add('w-full', 'max-w-5xl');
+                    }
+                };
+
+                updateContainerClass(container1, state.dashboard1Compact);
+                updateContainerClass(container2, state.dashboard2Compact);
+                updateContainerClass(container3, state.dashboard3Compact);
+
+                const rect1Last = container1.getBoundingClientRect();
+                const rect2Last = container2.getBoundingClientRect();
+                const rect3Last = container3.getBoundingClientRect(); 
+                
+                const deltaX1 = rect1First.left - rect1Last.left;
+                const deltaY1 = rect1First.top - rect1Last.top;
+                const deltaX2 = rect2First.left - rect2Last.left;
+                const deltaY2 = rect2First.top - rect2Last.top;
+                const deltaX3 = rect3First.left - rect3Last.left; 
+                const deltaY3 = rect3First.top - rect3Last.top; 
+
+                if (Math.abs(deltaX1) > 0 || Math.abs(deltaY1) > 0) animateElement(container1, deltaX1, deltaY1);
+                if (Math.abs(deltaX2) > 0 || Math.abs(deltaY2) > 0) animateElement(container2, deltaX2, deltaY2);
+                if (Math.abs(deltaX3) > 0 || Math.abs(deltaY3) > 0) animateElement(container3, deltaX3, deltaY3); 
+            }
+
+            function animateElement(el, dx, dy) {
+                el.style.transition = 'none';
+                el.style.transform = `translate(${dx}px, ${dy}px)`;
+                el.offsetHeight;
+                el.style.transition = 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)'; 
+                el.style.transform = '';
+                setTimeout(() => {
+                    el.style.transition = '';
+                    el.style.transform = '';
+                }, 500);
+            }
+
+            function handleGlobalToggle(targetCompactState) {
+                d1.setMode(targetCompactState);
+                d2.setMode(targetCompactState);
+                d3.setMode(targetCompactState); 
+            }
+
+            // --- INSTANTIATION ---
+            const d1 = new MorningDashboard(
+                'dashboard-1-container', 
+                'morning_routine_v1', 
+                { mode: 'wakeup', title: 'Good Morning' },
+                1, 
+                updateLayout,
+                handleGlobalToggle
+            );
+
+            const d2 = new MorningDashboard(
+                'dashboard-2-container', 
+                'morning_routine_v2', 
+                { mode: 'counter', title: '手艺记录' }, 
+                2, 
+                updateLayout,
+                handleGlobalToggle
+            );
+
+            const d3 = new MorningDashboard(
+                'dashboard-3-container', 
+                'morning_routine_v3', 
+                { 
+                    mode: 'multi-tracker', 
+                    title: '全能学习打卡',
+                    categories: ['温故系统', '知新系统', 'Anki'],
+                    defaultToBackSide: true
+                }, 
+                3, 
+                updateLayout,
+                handleGlobalToggle
+            );
+        });
+    </script>
+</body>
+</html>
