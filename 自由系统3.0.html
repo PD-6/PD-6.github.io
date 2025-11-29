@@ -262,9 +262,9 @@
             <!-- Left Column -->
             <div class="left-column-ref md:col-span-5 flex flex-col justify-between h-full relative z-10 transition-all duration-500 w-full">
                 <header class="flex justify-between items-start w-full">
-                    <div class="flex flex-col">
+                    <div class="flex flex-col flex-1 mr-4">
                         <span class="text-[11px] font-semibold tracking-widest text-ios-subtext uppercase current-date-ref">LOADING...</span>
-                        <h1 class="text-3xl font-bold tracking-tight text-ios-text mt-1 dashboard-title-ref">Good Morning</h1>
+                        <h1 class="text-3xl font-bold tracking-tight text-ios-text mt-1 dashboard-title-ref hover:opacity-70 transition-opacity cursor-pointer group" title="双击修改名称">Good Morning</h1>
                     </div>
                     <div class="flex items-center gap-1 -mr-2">
                         <button class="btn-toggle-view group p-2 rounded-full hover:bg-black/5 transition-colors cursor-pointer" title="切换视图 (长按排序)">
@@ -734,6 +734,7 @@
                 this.storageKeyFilter = storageKey + '_filter';
                 this.storageKeySettings = storageKey + '_settings'; 
                 this.storageKeyViewState = storageKey + '_view_state';
+                this.storageKeyTitle = storageKey + '_title'; // Key for storing custom title
 
                 this.config = config; 
                 this.instanceId = instanceId;
@@ -743,6 +744,9 @@
                 this.data = JSON.parse(localStorage.getItem(this.storageKey)) || [];
                 this.filter = JSON.parse(localStorage.getItem(this.storageKeyFilter)) || { type: 'days', value: 30 };
                 
+                // Read stored title or fallback to config
+                this.title = localStorage.getItem(this.storageKeyTitle) || config.title;
+
                 let defaultSettings;
                 if (config.mode === 'counter') {
                     defaultSettings = { weeklyLimit: 3 };
@@ -784,7 +788,8 @@
                     }, 0);
                 }
                 
-                this.root.querySelector('.dashboard-title-ref').textContent = this.config.title;
+                // Use stored title
+                this.root.querySelector('.dashboard-title-ref').textContent = this.title;
                 
                 if (this.config.mode === 'counter') {
                     this.root.querySelector('.btn-text-ref').textContent = '记录一次';
@@ -1368,6 +1373,40 @@
 
             bindEvents() {
                 const r = this.root;
+                
+                // --- NEW: Double click title to edit ---
+                const titleEl = r.querySelector('.dashboard-title-ref');
+                titleEl.addEventListener('dblclick', () => {
+                    const currentText = this.title;
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = currentText;
+                    input.className = 'bg-transparent border-b-2 border-ios-blue text-3xl font-bold tracking-tight text-ios-text mt-1 outline-none w-full';
+                    
+                    const save = () => {
+                        const newVal = input.value.trim();
+                        if (newVal) {
+                            this.title = newVal;
+                            localStorage.setItem(this.storageKeyTitle, newVal);
+                            titleEl.textContent = newVal;
+                        } else {
+                            titleEl.textContent = this.title; // Revert if empty
+                        }
+                    };
+
+                    input.onblur = save;
+                    input.onkeydown = (e) => {
+                        if (e.key === 'Enter') {
+                            input.blur();
+                        }
+                    };
+
+                    titleEl.textContent = '';
+                    titleEl.appendChild(input);
+                    input.focus();
+                });
+                // ---------------------------------------
+
                 if(this.config.mode !== 'multi-tracker') {
                     r.querySelector('.btn-log-wakeup').onclick = () => this.logAction(); 
                 }
@@ -2887,7 +2926,7 @@
             const d2 = new MorningDashboard(
                 'dashboard-2-container', 
                 'morning_routine_v2', 
-                { mode: 'counter', title: '手艺记录' }, 
+                { mode: 'counter', title: '坏习惯记录' }, 
                 2, 
                 updateLayout,
                 handleGlobalToggle

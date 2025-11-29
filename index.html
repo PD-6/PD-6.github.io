@@ -12,9 +12,10 @@
     :root {
       /* Default Colors */
       --default-primary-color: #3b82f6; /* Tailwind's blue-500 */
-      --default-sidebar-bg-color: #1f2937; /* Tailwind gray-800 */
+      /* Updated Default Sidebar Color based on user request (RGB 31, 87, 199 -> #1F57C7) */
+      --default-sidebar-bg-color: #1F57C7; 
       --default-sidebar-text-color: #ffffff;
-      --default-sidebar-hover-bg-color: #374151; /* Tailwind gray-700 */
+      --default-sidebar-hover-bg-color: #2e66d4; /* Slightly lighter for hover base */
       --default-active-button-text-color: #ffffff;
 
       /* Current Colors */
@@ -64,10 +65,11 @@
       padding-left: 1.25rem; /* Slight slide effect */
     }
     .active-sidebar-button {
-      background-color: var(--primary-color) !important;
-      color: var(--active-button-text-color) !important;
+      background-color: rgba(255, 255, 255, 0.2) !important; /* Adapted for blue background */
+      color: #ffffff !important;
       font-weight: 600;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .main-content-area {
         height: 100vh;
@@ -207,7 +209,7 @@
         <span id="file-version-tag" class="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-mono hidden">v?</span>
       </div>
       <button id="enter-system-button"
-              class="flex items-center gap-2 bg-[var(--primary-color)] text-[var(--active-button-text-color)] px-4 py-2 rounded-lg shadow hover:opacity-90 transition-all font-medium text-sm"
+              class="flex items-center gap-2 bg-[var(--default-sidebar-bg-color)] text-white px-4 py-2 rounded-lg shadow hover:opacity-90 transition-all font-medium text-sm"
               onclick="openCurrentInNewTab()">
         <span>全屏进入</span>
         <i class="ph-bold ph-arrow-square-out"></i>
@@ -282,7 +284,7 @@
     // --- 1. 核心配置逻辑 ---
     // 默认文件名 (如果用户还没设置过)
     const defaultPaths = {
-        'ziyou': '自由系统3.0.html',
+        'ziyou': '自由系统3.0.html', // 默认无空格
         'course-progress': '进度跟进系统.html',
         'wengu': '温故系统5.0.html',
         'zhixin': '知新系统5.0.html'
@@ -308,6 +310,14 @@
             try {
                 const parsed = JSON.parse(savedPaths);
                 currentPaths = { ...defaultPaths, ...parsed }; // 合并，防止键缺失
+
+                // ★ 自动修复逻辑：如果发现旧的“带空格”版本，自动修正为无空格
+                if (currentPaths['ziyou'] === '自由系统 3.0.html') {
+                    currentPaths['ziyou'] = '自由系统3.0.html';
+                    console.log('Fixed legacy filename with space.');
+                    localStorage.setItem('learningSystemPaths', JSON.stringify(currentPaths)); // 更新存储
+                }
+
             } catch(e) { console.error('Path load error', e); }
         }
 
@@ -543,6 +553,8 @@
         const defaultPrimary = getComputedStyle(root).getPropertyValue('--default-primary-color').trim();
         const defaultSidebarBg = getComputedStyle(root).getPropertyValue('--default-sidebar-bg-color').trim();
 
+        // 默认背景色如果已经通过CSS变量更改，这里会读取到新的蓝色 #1F57C7
+        // 如果用户以前存过自定义颜色，这里优先用存的。
         if (savedHighlight) {
             highlightColorPicker.value = savedHighlight;
             applyHighlightColor(savedHighlight);
