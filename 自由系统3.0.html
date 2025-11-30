@@ -1828,7 +1828,12 @@
                             else if (count <= 4) cell.classList.add('color-scale-green-2');
                             else if (count <= 6) cell.classList.add('color-scale-green-3');
                             else cell.classList.add('color-scale-green-4');
-                            if (count > 0) cell.title += ` - 复习 ${count} 次`;
+                            if (count > 0) {
+                                cell.title += ` - 复习 ${count} 次`;
+                                // 【关键修改】如果该天有复习记录（绿色格子），允许绑定拖拽删除
+                                // 这样用户可以删除误操作的复习记录
+                                this.setupHeatmapDrag(cell, dateStr);
+                            }
                         } else {
                             // 渲染 Workload (灰色)
                             const count = heatmapWorkloadData[dateStr] || 0;
@@ -1838,9 +1843,9 @@
                             else if (count <= 6) cell.classList.add('color-scale-gray-3');
                             else cell.classList.add('color-scale-gray-4');
                             if (count > 0) cell.title += ` - 计划 ${count} 项`;
+                            // 未来计划（灰色格子）依然不绑定删除，防止误删计划
                         }
                         
-                        // 温故模式下不绑定拖拽删除逻辑，防止误删计划
                         container.appendChild(cell);
                     }
                     
@@ -2084,7 +2089,13 @@
 
                                 if (cx >= trashRect.left && cx <= trashRect.right && cy >= trashRect.top && cy <= trashRect.bottom) {
                                     // 触发删除
-                                    if(confirm(`确定删除 ${dateStr} 的记录吗?`)) {
+                                    let msg = `确定删除 ${dateStr} 的记录吗?`;
+                                    // 针对温故系统增加特殊提示
+                                    if (that.config.mode === 'multi-tracker' && that.currentCategoryFilter === '温故系统') {
+                                        msg = `确定撤销 ${dateStr} 的所有复习打卡记录吗？\n注意：这不会删除卡片本身，只会将该日期的复习状态标记为未完成。`;
+                                    }
+                                    
+                                    if(confirm(msg)) {
                                         that.deleteDate(dateStr);
                                     }
                                 }
@@ -2115,14 +2126,66 @@
             }
 
             deleteDate(dateStr) {
-                // 过滤掉那一天的数据
+                // --- 1. 温故系统专属删除逻辑 ---
+                if (this.config.mode === 'multi-tracker' && this.currentCategoryFilter === '温故系统') {
+                    try {
+                        const storedData = localStorage.getItem('scheduleData');
+                        if (!storedData) return;
+                        let wenguData = JSON.parse(storedData);
+                        let hasChanges = false;
+                        const pad = n => String(n).padStart(2,'0');
+
+                        // 遍历所有数据，检查 reviewLog
+                        wenguData.forEach(item => {
+                            if (item.reviewLog) {
+                                let itemChanged = false;
+                                Object.keys(item.reviewLog).forEach(idx => {
+                                    const logTimeStr = item.reviewLog[idx];
+                                    if (logTimeStr) {
+                                        const d = new Date(logTimeStr);
+                                        if (!isNaN(d.getTime())) {
+                                            const logDateStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+                                            
+                                            // 如果这一条复习记录是目标日期的
+                                            if (logDateStr === dateStr) {
+                                                // 1. 从日志中移除
+                                                delete item.reviewLog[idx];
+                                                
+                                                // 2. 将对应的 reviewed 状态重置为 false (允许重新打卡)
+                                                if (item.reviewed && Array.isArray(item.reviewed)) {
+                                                    item.reviewed[idx] = false;
+                                                }
+                                                
+                                                itemChanged = true;
+                                            }
+                                        }
+                                    }
+                                });
+                                if (itemChanged) hasChanges = true;
+                            }
+                        });
+
+                        if (hasChanges) {
+                            localStorage.setItem('scheduleData', JSON.stringify(wenguData));
+                            this.renderAllCharts(); // 重绘热力图
+                            this.renderBackSideData(); // 如果在背面，刷新列表
+                        } else {
+                            alert("该日期没有找到可撤销的复习记录。");
+                        }
+                    } catch (e) {
+                        console.error("温故删除失败", e);
+                        alert("删除失败，请检查控制台");
+                    }
+                    return; // 结束温故逻辑
+                }
+
+                // --- 2. 常规删除逻辑 (Free System) ---
                 const initialLength = this.data.length;
                 this.data = this.data.filter(item => item.date !== dateStr);
                 
                 if (this.data.length < initialLength) {
                     localStorage.setItem(this.storageKey, JSON.stringify(this.data));
                     this.renderAllCharts();
-                    // 这里可以加一个简单的 Toast 提示，但这里先省略
                 } else {
                     alert("该日期没有记录");
                 }
