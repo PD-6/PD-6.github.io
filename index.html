@@ -11,14 +11,9 @@
   <style>
     :root {
       /* Default Colors */
-      /* Highligh Color from Image 1 (RGB: 59, 130, 246) */
       --default-primary-color: #3b82f6; 
-      
-      /* Background Color from Image 2 (RGB: 22, 89, 223) -> #1659df */
-      --default-sidebar-bg-color: #1659df; 
-      
+      --default-sidebar-bg-color: #1659df; /* Updated Blue */
       --default-sidebar-text-color: #ffffff;
-      /* Adjusted hover color slightly based on the new background */
       --default-sidebar-hover-bg-color: #2563eb; 
       --default-active-button-text-color: #ffffff;
 
@@ -49,14 +44,27 @@
       height: 100%;
       border: none;
     }
+    
+    /* Sidebar Styles & Transition */
     .sidebar {
         background-color: var(--sidebar-bg-color);
         color: var(--sidebar-text-color);
         height: 100vh;
         display: flex;
         flex-direction: column;
-        transition: background-color 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Smoother transition */
+        white-space: nowrap; /* Prevent text wrapping when shrinking */
+        overflow: hidden;
     }
+
+    /* 侧边栏收起状态 */
+    .sidebar.collapsed {
+        width: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        opacity: 0;
+    }
+
     .sidebar-button {
       transition: all 0.2s ease;
       color: var(--sidebar-text-color);
@@ -66,10 +74,10 @@
     }
     .sidebar-button:hover {
       background-color: var(--sidebar-hover-bg-color);
-      padding-left: 1.25rem; /* Slight slide effect */
+      padding-left: 1.25rem; 
     }
     .active-sidebar-button {
-      background-color: rgba(255, 255, 255, 0.2) !important; /* Adapted for blue background */
+      background-color: rgba(255, 255, 255, 0.2) !important;
       color: #ffffff !important;
       font-weight: 600;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -77,7 +85,7 @@
     }
     .main-content-area {
         height: 100vh;
-        overflow-y: hidden; /* Prevent double scrollbars */
+        overflow-y: hidden;
         background-color: #f3f4f6;
     }
     
@@ -122,42 +130,49 @@
         transform: scale(1.02);
     }
     
-    /* 颜色选择器容器 */
     .color-controls-container {
         margin-top: auto; 
         padding-top: 1rem;
         border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* 顶部菜单切换按钮动画 */
+    #menu-toggle-btn {
+        transition: transform 0.2s;
+    }
+    #menu-toggle-btn:active {
+        transform: scale(0.95);
     }
   </style>
 </head>
 <body class="flex h-screen antialiased text-gray-900">
 
   <!-- 侧边栏 -->
-  <aside class="sidebar w-56 md:w-64 p-5 space-y-2 shadow-2xl z-20 flex-shrink-0">
-    <div class="mb-8 px-2 flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-            <i class="ph-bold ph-stack text-xl"></i>
+  <aside id="main-sidebar" class="sidebar w-56 md:w-64 p-5 space-y-2 shadow-2xl z-20 flex-shrink-0">
+    <div class="mb-8 px-2 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                <i class="ph-bold ph-stack text-xl"></i>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight">学习体系</h1>
         </div>
-        <h1 class="text-xl font-bold tracking-tight">学习体系</h1>
+        
+        <!-- 【新功能】侧边栏内的收起按钮 -->
+        <button onclick="toggleSidebar()" class="p-1.5 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-colors" title="收起侧边栏">
+            <i class="ph-bold ph-caret-double-left text-xl"></i>
+        </button>
     </div>
     
     <!-- 导航按钮 -->
     <button id="btn-ziyou"
             class="sidebar-button w-full text-left px-4 py-3 rounded-xl"
             onclick="switchSystem('ziyou')">
-      <!-- 
-          ★ 关键修改：直接使用图片文件 "dove.png"
-          请确保您已将图片重命名为 "dove.png" 并放在同一目录下。
-          style="filter: invert(1); mix-blend-mode: screen;" 这行代码会自动去除白底并变成白色线条。
-      -->
       <img src="dove.png" 
            alt="自由系统图标" 
            class="w-6 h-6 object-contain" 
            style="filter: invert(1); mix-blend-mode: screen;"
            onerror="this.style.display='none'; document.getElementById('ziyou-fallback').style.display='block';">
-      <!-- 如果找不到图片，显示这个备用图标 -->
       <i id="ziyou-fallback" class="ph-bold ph-bird text-lg" style="display:none;"></i>
-      
       <span>自由系统</span>
     </button>
     
@@ -208,10 +223,19 @@
     
     <!-- 顶部栏 -->
     <header class="bg-white shadow-sm px-6 py-4 flex justify-between items-center z-10 flex-shrink-0 h-16">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-4">
+        <!-- 【新功能】主内容区的展开按钮 (菜单按钮) -->
+        <button id="menu-toggle-btn" 
+                onclick="toggleSidebar()" 
+                class="p-2 -ml-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors" 
+                title="展开/收起侧边栏">
+            <i class="ph-bold ph-list text-xl"></i>
+        </button>
+
         <h2 id="content-title" class="text-xl font-bold text-gray-800">课程进度</h2>
         <span id="file-version-tag" class="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-mono hidden">v?</span>
       </div>
+      
       <button id="enter-system-button"
               class="flex items-center gap-2 bg-[var(--default-sidebar-bg-color)] text-white px-4 py-2 rounded-lg shadow hover:opacity-90 transition-all font-medium text-sm"
               onclick="openCurrentInNewTab()">
@@ -223,13 +247,11 @@
     <!-- iframe 容器 -->
     <div class="flex-grow p-4 md:p-6 overflow-hidden">
         <div class="iframe-wrapper shadow-lg relative bg-gray-50 flex items-center justify-center">
-            <!-- 所有的 iframe 都在这里，src 将由 JS 动态控制 -->
             <iframe id="frame-ziyou" class="system-frame" style="display:none;"></iframe>
             <iframe id="frame-course-progress" class="system-frame" style="display:none;"></iframe>
             <iframe id="frame-wengu" class="system-frame" style="display:none;"></iframe>
             <iframe id="frame-zhixin" class="system-frame" style="display:none;"></iframe>
             
-            <!-- 404 提示层 (当文件找不到时显示) -->
             <div id="not-found-state" class="hidden text-center p-8">
                 <i class="ph-duotone ph-file-x text-6xl text-gray-300 mb-4"></i>
                 <h3 class="text-lg font-bold text-gray-700">找不到文件</h3>
@@ -250,14 +272,12 @@
             <button onclick="closePathSettings()" class="p-1 hover:bg-gray-100 rounded-full"><i class="ph-bold ph-x text-lg"></i></button>
         </div>
 
-        <!-- 拖拽自动识别区 -->
         <div id="dropZone" class="drop-zone mb-6 group">
             <i class="ph-duotone ph-file-arrow-up text-4xl text-gray-400 group-hover:text-blue-500 transition-colors mb-2"></i>
             <p class="text-sm font-medium text-gray-600">把你的 HTML 文件拖拽到这里</p>
-            <p class="text-xs text-gray-400 mt-1">自动识别名称并更新链接 (如: 把 温故系统5.0.html 拖进来)</p>
+            <p class="text-xs text-gray-400 mt-1">自动识别名称并更新链接</p>
         </div>
 
-        <!-- 手动输入区 -->
         <div class="space-y-4 mb-6">
             <div class="grid grid-cols-4 items-center gap-2">
                 <label class="text-sm font-medium text-gray-700 text-right">自由系统</label>
@@ -286,19 +306,16 @@
 
   <script>
     // --- 1. 核心配置逻辑 ---
-    // 默认文件名 (如果用户还没设置过)
     const defaultPaths = {
-        'ziyou': '自由系统3.0.html', // 默认无空格
+        'ziyou': '自由系统3.0.html',
         'course-progress': '进度跟进系统.html',
         'wengu': '温故系统5.0.html',
         'zhixin': '知新系统5.0.html'
     };
 
-    // 当前使用的路径
     let currentPaths = { ...defaultPaths };
-    let activeSystem = 'ziyou'; // 默认激活改为“自由系统”
+    let activeSystem = 'ziyou'; 
 
-    // 键值映射到显示名称
     const sysNames = {
         'ziyou': '自由系统',
         'course-progress': '课程进度',
@@ -306,52 +323,49 @@
         'zhixin': '知新系统'
     };
 
-    // 初始化
     function init() {
-        // 1. 加载保存的路径
         const savedPaths = localStorage.getItem('learningSystemPaths');
         if (savedPaths) {
             try {
                 const parsed = JSON.parse(savedPaths);
-                currentPaths = { ...defaultPaths, ...parsed }; // 合并，防止键缺失
-
-                // ★ 自动修复逻辑：如果发现旧的“带空格”版本，自动修正为无空格
+                currentPaths = { ...defaultPaths, ...parsed };
                 if (currentPaths['ziyou'] === '自由系统 3.0.html') {
                     currentPaths['ziyou'] = '自由系统3.0.html';
-                    console.log('Fixed legacy filename with space.');
-                    localStorage.setItem('learningSystemPaths', JSON.stringify(currentPaths)); // 更新存储
+                    localStorage.setItem('learningSystemPaths', JSON.stringify(currentPaths));
                 }
-
             } catch(e) { console.error('Path load error', e); }
         }
 
-        // 2. 加载颜色配置
         loadColorSettings();
-
-        // 3. 渲染界面
         switchSystem(activeSystem);
-        
-        // 4. 设置当前年份
-        // document.getElementById('currentYear').textContent = new Date().getFullYear();
-
-        // 5. 初始化拖拽功能
         setupDropZone();
+        
+        // 恢复侧边栏状态
+        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        if (isCollapsed) {
+            document.getElementById('main-sidebar').classList.add('collapsed');
+        }
     }
 
-    // 切换系统 (核心修改：每次都强制刷新)
+    // --- 新功能：侧边栏切换 ---
+    function toggleSidebar() {
+        const sidebar = document.getElementById('main-sidebar');
+        sidebar.classList.toggle('collapsed');
+        
+        // 保存状态
+        localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+    }
+
     function switchSystem(key) {
         activeSystem = key;
 
-        // 更新侧边栏状态
         document.querySelectorAll('.sidebar-button').forEach(btn => btn.classList.remove('active-sidebar-button'));
         const activeBtn = document.getElementById(`btn-${key}`);
         if(activeBtn) activeBtn.classList.add('active-sidebar-button');
 
-        // 更新标题
         const titleEl = document.getElementById('content-title');
         titleEl.textContent = sysNames[key];
         
-        // 更新版本标签 (提取文件名中的数字部分简单展示)
         const fileName = currentPaths[key];
         const versionMatch = fileName.match(/(\d+\.\d+)/);
         const verTag = document.getElementById('file-version-tag');
@@ -362,23 +376,17 @@
             verTag.classList.add('hidden');
         }
 
-        // 切换 iframe
         const frames = document.querySelectorAll('.system-frame');
         frames.forEach(f => f.style.display = 'none');
         
         const targetFrame = document.getElementById(`frame-${key}`);
         const notFoundState = document.getElementById('not-found-state');
         
-        // 设置 src 并显示
         if (targetFrame) {
-            // ★★★ 核心修改：移除 if 判断，强制每次重新加载 iframe ★★★
-            // 这样能确保您在“自由系统”里的数据更新，立即在其他系统里可见
             targetFrame.src = currentPaths[key];
-            
             targetFrame.style.display = 'block';
             notFoundState.classList.add('hidden');
             
-            // 尝试检测加载失败 (本地文件 file:// 协议下 onerror 可能不触发，这是浏览器限制)
             targetFrame.onerror = () => {
                 targetFrame.style.display = 'none';
                 document.getElementById('missing-filename').textContent = currentPaths[key];
@@ -387,7 +395,6 @@
         }
     }
 
-    // 在新标签页打开
     function openCurrentInNewTab() {
         const path = currentPaths[activeSystem];
         if (path) window.open(path, '_blank');
@@ -397,12 +404,10 @@
     const modal = document.getElementById('pathSettingsModal');
     
     function openPathSettings() {
-        // 填充当前值
         document.getElementById('input-ziyou').value = currentPaths['ziyou'];
         document.getElementById('input-course-progress').value = currentPaths['course-progress'];
         document.getElementById('input-wengu').value = currentPaths['wengu'];
         document.getElementById('input-zhixin').value = currentPaths['zhixin'];
-        
         modal.style.display = 'flex';
     }
 
@@ -421,15 +426,14 @@
         currentPaths = newPaths;
         localStorage.setItem('learningSystemPaths', JSON.stringify(currentPaths));
         
-        // 重新加载当前系统以应用更改
         const targetFrame = document.getElementById(`frame-${activeSystem}`);
-        targetFrame.src = 'about:blank'; // Force reset
+        targetFrame.src = 'about:blank'; 
         setTimeout(() => switchSystem(activeSystem), 50);
 
         closePathSettings();
     }
 
-    // --- 3. 拖拽自动识别核心逻辑 (Smart Update) ---
+    // --- 3. 拖拽自动识别 ---
     function setupDropZone() {
         const dropZone = document.getElementById('dropZone');
         const inputs = {
@@ -439,7 +443,6 @@
             'zhixin': document.getElementById('input-zhixin')
         };
 
-        // 拖拽高亮效果
         ['dragenter', 'dragover'].forEach(eventName => {
             dropZone.addEventListener(eventName, (e) => {
                 e.preventDefault();
@@ -456,19 +459,14 @@
             }, false);
         });
 
-        // 处理文件放置
         dropZone.addEventListener('drop', (e) => {
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 let updatedCount = 0;
-                
-                // 遍历拖入的文件
                 for(let file of files) {
                     const name = file.name;
-                    // 简单的关键词匹配逻辑
                     if (name.includes('自由')) {
                         inputs['ziyou'].value = name;
-                        // 闪烁效果提示更新
                         flashInput(inputs['ziyou']);
                         updatedCount++;
                     } else if (name.includes('进度') || name.includes('课程')) {
@@ -487,7 +485,6 @@
                 }
 
                 if (updatedCount > 0) {
-                   // 可选：显示一个小提示
                    const p = dropZone.querySelector('p.text-sm');
                    const originalText = p.textContent;
                    p.textContent = `成功识别 ${updatedCount} 个文件！记得点保存。`;
@@ -502,7 +499,7 @@
     }
 
     function flashInput(el) {
-        el.style.backgroundColor = '#dbeafe'; // light blue
+        el.style.backgroundColor = '#dbeafe'; 
         el.style.borderColor = '#3b82f6';
         setTimeout(() => {
             el.style.backgroundColor = '';
@@ -510,14 +507,13 @@
         }, 800);
     }
 
-    // --- 4. 颜色与外观逻辑 (保留原功能) ---
+    // --- 4. 颜色与外观 ---
     const root = document.documentElement;
     const highlightColorPicker = document.getElementById('highlightColorPicker');
     const sidebarBgColorPicker = document.getElementById('sidebarBgColorPicker');
 
     function applyHighlightColor(color) {
         root.style.setProperty('--primary-color', color);
-        // 根据亮度自动调整文字颜色
         const luma = getLuma(color);
         root.style.setProperty('--active-button-text-color', luma > 150 ? '#000000' : '#ffffff');
     }
@@ -557,8 +553,6 @@
         const defaultPrimary = getComputedStyle(root).getPropertyValue('--default-primary-color').trim();
         const defaultSidebarBg = getComputedStyle(root).getPropertyValue('--default-sidebar-bg-color').trim();
 
-        // 默认背景色如果已经通过CSS变量更改，这里会读取到新的蓝色 #1F57C7
-        // 如果用户以前存过自定义颜色，这里优先用存的。
         if (savedHighlight) {
             highlightColorPicker.value = savedHighlight;
             applyHighlightColor(savedHighlight);
@@ -592,7 +586,6 @@
         loadColorSettings();
     });
 
-    // 启动
     window.onload = init;
   </script>
 </body>
