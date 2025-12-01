@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
-<title>学习复习计划表（热力图增强版）</title>
+<title>学习复习计划表 (v5.3 全窗口优化版)</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
 <!-- 引入 canvas-confetti 动画库 -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
@@ -41,7 +41,7 @@
   --geo:  #2ecc71;
 }
 
-/* 优化移动端触控体验，防止双击缩放，提高双击事件响应率 */
+/* 优化移动端触控体验 */
 html {
     touch-action: manipulation; 
     height: 100%;
@@ -73,7 +73,7 @@ input:focus, select:focus {
 }
 
 /* =========================================
-   搜索面板样式 (修复版：推拉式)
+   搜索面板样式 (推拉式)
    ========================================= */
 
 /* 搜索按钮 */
@@ -96,31 +96,26 @@ input:focus, select:focus {
     background: #0073e6;
     opacity: 0.88;
 }
-/* 【修改点】这里把灰色 var(--gray-dark) 改成了橙色 var(--orange) */
 #searchIconBtn.active {
     background: var(--orange); 
     transform: none;
-    box-shadow: inset 0 2px 5px rgba(0,0,0,0.1); /* 加一点内阴影更有按下的感觉 */
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.1); 
 }
 
-/* 筛选面板容器 - 独立占据一行，不遮挡表格 */
+/* 筛选面板容器 */
 #filterPanel {
-    display: none; /* 默认隐藏 */
+    display: none; 
     width: 100%;
     background: rgba(255, 255, 255, 0.6);
     border: 1px solid var(--card-border);
     box-shadow: inset 0 2px 6px rgba(0,0,0,0.03);
     padding: 15px;
     border-radius: 14px;
-    margin-bottom: 20px; /* 增加底部间距，推开表格 */
+    margin-bottom: 20px; 
     box-sizing: border-box;
-    
-    /* 内部布局 */
     flex-wrap: wrap;
     gap: 12px;
     align-items: center;
-    
-    /* 动画 */
     animation: slideDown 0.3s ease-out forwards;
 }
 
@@ -137,11 +132,11 @@ input:focus, select:focus {
    UI 样式
    ------------------------------------- */
 #searchInput {
-    flex: 1; /* 让搜索框稍微长一点 */
+    flex: 1; 
     min-width: 200px;
     border: 1px solid var(--blue);
     background-color: #fff; 
-    color: #333; /* 强制字体颜色，防止看不见 */
+    color: #333; 
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230a84ff' width='18px' height='18px'%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: 12px center;
@@ -454,7 +449,6 @@ td.clickable-cell:hover { background-color: #f0f0f030; }
     box-shadow: 0 4px 10px rgba(0,0,0,0.03);
     transition: all 0.3s ease;
 }
-/* 增加统计卡片动态更新时的效果 */
 .stat-card.updating {
     transform: scale(1.05);
     box-shadow: 0 8px 15px rgba(10, 132, 255, 0.15);
@@ -540,7 +534,7 @@ td.clickable-cell:hover { background-color: #f0f0f030; }
     color: var(--gray);
 }
 
-/* 垂直柱状图 (预测功能新增) */
+/* 垂直柱状图 */
 .forecast-chart {
     display: flex;
     justify-content: space-between;
@@ -806,11 +800,11 @@ let scienceMode=false, artsMode=false;
 let currentSelectedYear = "";
 let currentSelectedMonth = "";
 let currentImportanceFilter = "";
-let currentSearchQuery = ""; // 新增：搜索关键词
+let currentSearchQuery = ""; 
 let lastAnimatedCell = null; 
 let currentAnimationEffect = 'anim-pulse'; 
 let currentAnimationSpeed = '0.4s'; 
-let selectedStatsTags = new Set(); // 升级：使用 Set 支持多选
+let selectedStatsTags = new Set(); 
 
 const intervals=[1*24*60, 2*24*60, 4*24*60, 7*24*60, 14*24*60, 30*24*60, 60*24*60, 90*24*60, 180*24*60, 365*24*60];
 const stageNames=["1天后", "2天后", "3-4天后", "1周后", "2周后", "1个月后", "2个月后", "3个月后", "6个月后", "1年后"];
@@ -823,7 +817,6 @@ const groupDisplayNames = ["1-2天", "3-4天", "1-2周", "1-2月", "3个月", "6
 /**************** 工具函数 ****************/
 const pad=n=>String(n).padStart(2,'0');
 
-// 修复1：添加 HTML 转义函数，防止 XSS 攻击
 function escapeHtml(text) {
   if (!text) return text;
   return text.replace(/&/g, "&amp;")
@@ -846,8 +839,6 @@ function computeSchedule(baseDate, importance){
   if (!isValidDate(baseDate)) return [];
   const baseTimestamp = baseDate.getTime();
   return intervals.map((minutes, index) => {
-      // 即使是“一般”重要性的第2阶段，也计算出日期，避免返回 null 导致后续崩溃。
-      // UI 渲染时会根据重要性决定是否显示。
       return new Date(baseTimestamp + minutes * 60000);
   });
 }
@@ -988,7 +979,6 @@ function revive(arr) {
     item.tags = item.tags.map(t => String(t || '').trim()).filter(Boolean);
     const initialDate = new Date(item.initial);
     item.initial = initialDate;
-    // 重新计算 schedule，确保没有 null
     item.schedule = isValidDate(initialDate) ? computeSchedule(initialDate, item.importance) : [];
     const newReviewed = Array(intervals.length).fill(false);
     if (Array.isArray(item.reviewed)) {
@@ -998,8 +988,6 @@ function revive(arr) {
     }
     item.reviewed = newReviewed;
 
-    // 新增：初始化 reviewLog (用于热力图统计真实复习时间)
-    // 这是一个对象，key为阶段index，value为时间戳字符串
     if (!item.reviewLog || typeof item.reviewLog !== 'object') {
         item.reviewLog = {};
     }
@@ -1060,13 +1048,11 @@ const filterPanel = document.getElementById('filterPanel');
 
 /**************** 事件绑定 ****************/
 
-// 修复2：搜索按钮逻辑优化（第二次点击清空并收起）
 searchIconBtn.onclick = (e) => {
     e.stopPropagation(); 
     const isOpen = filterPanel.classList.contains('show');
     
     if (isOpen) {
-        // 如果已经打开，再次点击则：清空筛选、清空输入、关闭面板
         currentSelectedYear = "";
         currentSelectedMonth = "";
         currentImportanceFilter = "";
@@ -1077,24 +1063,18 @@ searchIconBtn.onclick = (e) => {
         searchInput.value = ""; 
         monthFilterSelect.disabled = true;
         
-        // 重新渲染（恢复显示所有数据）
         render();
 
-        // 关闭 UI
         filterPanel.classList.remove('show');
         searchIconBtn.classList.remove('active');
     } else {
-        // 如果是关闭状态，则打开
         filterPanel.classList.add('show');
         searchIconBtn.classList.add('active');
-        // 自动聚焦输入框，提升体验
         searchInput.focus();
     }
 };
 
-// 点击页面其他地方关闭搜索框
 document.addEventListener('click', (e) => {
-    // 只有当点击不在 searchIconBtn 且不在 filterPanel 内部时才关闭
     if (!filterPanel.contains(e.target) && e.target !== searchIconBtn && !searchIconBtn.contains(e.target)) {
         if (filterPanel.classList.contains('show')) {
             filterPanel.classList.remove('show');
@@ -1103,7 +1083,6 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// 防止在panel内部点击时关闭
 filterPanel.onclick = (e) => {
     e.stopPropagation();
 };
@@ -1115,36 +1094,60 @@ function isGroupFullyReviewed(item, groupIndex) {
     return indices.every(i => item.reviewed[i]);
 }
 
-// 修复3：优化 checkReviewStatus，移除硬编码，统一使用 intervals
+// 修复3：优化 checkReviewStatus，全阶段支持区间判定
 function checkReviewStatus(item, groupIndex, diffDays) {
     if (isGroupFullyReviewed(item, groupIndex)) {
         return { due: false, overdue: false };
     }
     
+    // 跳过一般重要性的3-4天阶段
     if (groupIndex === 1 && item.importance === '一般') {
         return { due: false, overdue: false };
     }
 
+    const indices = reviewGroups[groupIndex];
+    const firstIdx = indices[0];
+    const lastIdx = indices[indices.length - 1];
+    
+    let startDay = intervals[firstIdx] / (24 * 60);
+    let endDay = intervals[lastIdx] / (24 * 60);
+
+    // v5.3 修正：强制定义 "3-4天" 为一个区间窗口 [3, 4]
+    if (groupIndex === 1) { 
+        startDay = 3; 
+        endDay = 4;
+    }
+    
     let due = false;
     let overdue = false;
 
-    // 基于 intervals 数组动态计算天数，避免硬编码
-    // intervals 单位是分钟，除以 (24*60) 得到天数
-    const firstStageIndex = reviewGroups[groupIndex][0];
-    const targetMinutes = intervals[firstStageIndex];
-    const targetDays = targetMinutes / (24 * 60); // 1, 2, 4, 7...
+    // 逻辑：
+    // 1. 只有到了起始时间 (startDay) 才是 due (待复习)
+    // 2. 只有超过了结束时间 (endDay) + 缓冲期 才是 overdue (逾期)
+    
+    if (diffDays >= startDay) {
+        due = true;
+        
+        let buffer = 0;
+        
+        // v5.3 优化：所有阶段都按照窗口逻辑给予宽限
+        if (startDay === 1 && endDay === 2) {
+             // 1-2天: 允许+1天宽限 (即第3天算 Due, 第4天算 Overdue)
+             buffer = 1;
+        } else if (startDay === 3 && endDay === 4) {
+             // 3-4天: 允许+1天宽限 (即第5天算 Due, 第6天算 Overdue)
+             buffer = 1;
+        } else if (endDay <= 7) {
+             // 其他短期单点(如1周): 允许1-2天
+             buffer = 1; 
+        } else {
+             // 长期区间 (如1-2周, 1-2月): 给予25%宽限
+             buffer = Math.max(2, Math.ceil((endDay - startDay) * 0.25));
+        }
 
-    // 动态判断逻辑
-    if (targetDays <= 7) {
-        // 短期记忆：刚好到日子 或 晚了1天都算 due
-        if (diffDays >= targetDays && diffDays < targetDays + 2) due = true;
-        // 晚了2天以上算 overdue
-        if (diffDays >= targetDays + 2) { due = true; overdue = true; }
-    } else {
-        // 长期记忆：放宽范围
-        // 比如 30天后，在 28-45天内都算 due
-        if (diffDays >= targetDays - 2 && diffDays < targetDays + (targetDays * 0.5)) due = true;
-        if (diffDays >= targetDays + (targetDays * 0.5)) { due = true; overdue = true; }
+        if (diffDays > endDay + buffer) {
+            overdue = true;
+        }
     }
 
     return { due, overdue };
@@ -1153,11 +1156,9 @@ function checkReviewStatus(item, groupIndex, diffDays) {
 function getFilteredData() {
     let itemsToFilter = [...data];
 
-    // 搜索过滤逻辑
     if (currentSearchQuery) {
         itemsToFilter = itemsToFilter.filter(item => {
             const conceptMatch = item.concept.toLowerCase().includes(currentSearchQuery);
-            // 标签也要转义后再匹配吗？不用，直接匹配原始数据即可
             const tagMatch = item.tags.some(t => t.toLowerCase().includes(currentSearchQuery));
             return conceptMatch || tagMatch;
         });
@@ -1192,7 +1193,7 @@ function getFilteredData() {
 }
 
 function listToday(){
-  reviewListTitle.textContent = '今日待复习 (基于范围算法)'; reviewList.innerHTML='';
+  reviewListTitle.textContent = '今日待复习 (全窗口逻辑)'; reviewList.innerHTML='';
   const now = new Date();
   let foundItems = 0;
   const dataToFilter = getFilteredData();
@@ -1217,7 +1218,6 @@ function listToday(){
             const stageName = groupDisplayNames[groupIndex];
             const overdueText = status.overdue ? " <span style='color:var(--red);font-weight:bold;'>(已逾期)</span>" : "";
             
-            // 使用 escapeHtml 确保列表显示安全
             li.innerHTML = `
                 <span class="stage-info">➜ ${stageName}</span>${overdueText}<br>
                 <strong>${importanceTag}${escapeHtml(item.concept)}</strong> <span style="color:#666;font-size:0.9em;">(标签: ${renderTags(item.tags)})</span><br>
@@ -1254,7 +1254,6 @@ function listNext7Days() {
       
       const currentDiff = getCalendarDaysDiff(item.initial, now);
       
-      // 标志位，确保每个条目只显示最近的一个未来复习阶段
       let hasAddedForecast = false;
 
       reviewGroups.forEach((group, groupIndex) => {
@@ -1263,13 +1262,13 @@ function listNext7Days() {
           if (isGroupFullyReviewed(item, groupIndex)) return;
           if (groupIndex === 1 && item.importance === '一般') return;
 
-          // 同样使用动态计算的目标天数
+          // 预告逻辑也需要稍微适配窗口，取区间的开始时间做预告
           const firstStageIndex = reviewGroups[groupIndex][0];
-          const targetDays = intervals[firstStageIndex] / (24 * 60);
+          let targetDays = intervals[firstStageIndex] / (24 * 60);
+          if (groupIndex === 1) targetDays = 3; // 3-4天组，第3天开始预告
           
           const remaining = Math.floor(targetDays - currentDiff);
           
-          // 预测未来7天
           if (remaining >= 1 && remaining <= 7) {
              const li = document.createElement('li');
              const importanceTag = item.importance === '重要' 
@@ -1301,8 +1300,6 @@ function listNext7Days() {
 
   if (foundItems === 0) { reviewList.innerHTML = '<li>未来7天内无新触发的复习项目。</li>'; }
 }
-
-// ------------------------------------------------------------------------
 
 function refreshModeStyles(){
   document.body.classList.toggle('science-mode', scienceMode && !artsMode);
@@ -1368,7 +1365,6 @@ importanceFilterSelect.onchange = () => {
     render();
 };
 
-// 搜索输入事件
 searchInput.oninput = () => {
     currentSearchQuery = searchInput.value.toLowerCase().trim();
     render();
@@ -1398,7 +1394,6 @@ animationSpeedSelect.onchange = () => {
     save();
 };
 
-// 统计功能事件绑定
 statsBtn.onclick = openStats;
 closeStatsBtn.onclick = closeStats;
 statsModal.onclick = (e) => {
@@ -1421,7 +1416,7 @@ function addItem(){
     importance: importanceValue,
     schedule: computeSchedule(initialDateTime, importanceValue), 
     reviewed: Array(intervals.length).fill(false),
-    reviewLog: {} // 新增：记录真实复习时间
+    reviewLog: {} 
   };
   data.push(newItem);
   populateYearFilter();
@@ -1498,7 +1493,6 @@ function importData() {
             try {
                 const importedData = JSON.parse(event.target.result);
                 
-                // 稍微优化提示语，告知这是完全覆盖
                 if (confirm('注意：此操作将完全【覆盖】当前的所有学习记录！\n\n如果当前有未备份的数据，请先取消并导出备份。\n确定要覆盖吗？')) {
                     data = revive(importedData);
                     save();
@@ -1522,34 +1516,27 @@ function importData() {
     document.body.removeChild(fileInput);
 }
 
-/**************** 统计逻辑 (增强版) ****************/
+/**************** 统计逻辑 ****************/
 function openStats() {
-    selectedStatsTags.clear(); // 每次打开时重置筛选
+    selectedStatsTags.clear(); 
     calculateAndRenderStats();
     statsModal.classList.add('active');
 }
 
 function closeStats() {
-    selectedStatsTags.clear(); // 关闭时重置
+    selectedStatsTags.clear(); 
     statsModal.classList.remove('active');
 }
 
-// 多选交互逻辑核心
 let statsClickTimer = null;
 let statsPreventClick = false;
 
-// 单击处理：排他性选择 或 取消当前选择
 function handleTagClick(tag) {
-    // 【修改点】点击等待时间调整为 200 毫秒
     statsClickTimer = setTimeout(() => {
         if (!statsPreventClick) {
-            // 执行单击逻辑
             if (selectedStatsTags.has(tag)) {
-                // 如果已经选中，则取消该选中（如果在多选状态下，相当于移除这一个）
                 selectedStatsTags.delete(tag);
-                // 此时如果是单选模式下点击已选中的，就变成了全不选，这符合预期
             } else {
-                // 如果没选中，则进行排他性选择（清空其他，只选这个）
                 selectedStatsTags.clear();
                 selectedStatsTags.add(tag);
             }
@@ -1559,42 +1546,34 @@ function handleTagClick(tag) {
     }, 200); 
 }
 
-// 双击处理：追加选择（多选）
 function handleTagDblClick(tag) {
     clearTimeout(statsClickTimer);
     statsPreventClick = true;
     
-    // 执行双击逻辑
-    selectedStatsTags.add(tag); // 只是添加到集合中，不清除其他的
+    selectedStatsTags.add(tag); 
     refreshStatsUI();
 }
 
 function refreshStatsUI() {
-    // 触发重绘动画
     const cards = document.querySelectorAll('.stat-card');
     cards.forEach(card => {
         card.classList.remove('updating');
-        void card.offsetWidth; // 触发重绘
+        void card.offsetWidth; 
         card.classList.add('updating');
     });
     calculateAndRenderStats();
 }
 
-// 新增：热力图日期工具
 function getHeatmapDateRange() {
     const today = new Date();
-    today.setHours(0,0,0,0); // 标准化为午夜，避免跨天差异
+    today.setHours(0,0,0,0); 
     
-    // 往前 6 个月作为起点 (大约 26 周)
     const startDate = new Date(today);
     startDate.setMonth(today.getMonth() - 6);
-    // 调整到那周的周日 (Grid布局从周日开始)
     startDate.setDate(startDate.getDate() - startDate.getDay());
 
-    // 往后 2 周
     const endDate = new Date(today);
     endDate.setDate(today.getDate() + 14);
-    // 调整到那周的周六
     endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
 
     const dates = [];
@@ -1616,7 +1595,6 @@ function calculateAndRenderStats() {
         return;
     }
 
-    // 1. 全局统计
     const globalTagCounts = {};
     data.forEach(item => {
         if (item.tags && item.tags.length > 0) {
@@ -1629,7 +1607,6 @@ function calculateAndRenderStats() {
     });
     const sortedTags = Object.entries(globalTagCounts).sort((a, b) => b[1] - a[1]);
 
-    // 2. 根据 selectedStatsTags 筛选数据
     let filteredDataForStats = data;
     if (selectedStatsTags.size > 0) {
         filteredDataForStats = data.filter(item => {
@@ -1638,7 +1615,6 @@ function calculateAndRenderStats() {
         });
     }
 
-    // 3. 计算常规统计数据
     let totalItems = filteredDataForStats.length;
     let totalReviewPoints = 0;
     let completedReviewPoints = 0;
@@ -1647,20 +1623,14 @@ function calculateAndRenderStats() {
 
     const stageTotalCounts = Array(7).fill(0);
     const stageCompletedCounts = Array(7).fill(0);
-    const forecastCounts = Array(7).fill(0); // 柱状图用
+    const forecastCounts = Array(7).fill(0); 
     
-    // 热力图数据准备 (map: dateKey -> count)
-    const heatmapActivityData = {}; // 过去：实际复习数 (根据 reviewLog)
-    const heatmapWorkloadData = {}; // 未来：计划复习数 (根据 schedule)
+    const heatmapActivityData = {}; 
+    const heatmapWorkloadData = {}; 
 
-    // A. 填充热力图数据 (修正版：按 Group 统计，完全遍历所有打卡记录)
     filteredDataForStats.forEach(item => {
-        // 1. 统计 Activity (过去实际点击)
         if (item.reviewLog) {
             reviewGroups.forEach((group, groupIndex) => {
-                // 收集该组内所有有效的打卡日期（去重）
-                // 这样如果同一组在不同天都有打卡，每一天都会被统计到
-                // 如果同一组在同一天多次打卡，只算一次
                 const uniqueDaysForGroup = new Set();
                 
                 group.forEach(idx => {
@@ -1673,23 +1643,18 @@ function calculateAndRenderStats() {
                     }
                 });
 
-                // 将该组贡献的所有活跃天数加到全局热力图中
                 uniqueDaysForGroup.forEach(dateKey => {
                     heatmapActivityData[dateKey] = (heatmapActivityData[dateKey] || 0) + 1;
                 });
             });
         }
 
-        // 2. 统计 Workload (未来计划)
-        // 同样以 Group 为单位。如果 Group 整体未完成，取 Group 的起始日期作为计划日期。
         reviewGroups.forEach((group, groupIndex) => {
             if (groupIndex === 1 && item.importance === '一般') return;
             
-            // 检查整个 Group 是否已完成
             const isDone = group.every(i => i < item.reviewed.length && item.reviewed[i]);
             
             if (!isDone) {
-                // 查找该 Group 中第一个在这个时刻之后的时间点
                 let targetDate = null;
                 for (const idx of group) {
                     if (item.schedule[idx] && item.schedule[idx] > now) {
@@ -1773,7 +1738,6 @@ function calculateAndRenderStats() {
     }
 
 
-    // 4. 生成 HTML
     let html = `
         <div class="stats-grid">
             <div class="stat-card updating">
@@ -1804,7 +1768,6 @@ function calculateAndRenderStats() {
             <div class="heatmap-grid">
     `;
 
-    // 渲染热力图网格
     const heatmapDates = getHeatmapDateRange();
     const todayStr = formatDateKey(new Date());
     
@@ -1817,7 +1780,6 @@ function calculateAndRenderStats() {
         let count = 0;
 
         if (isPastOrToday) {
-            // 过去模式：使用 Activity Data (绿色)
             count = heatmapActivityData[key] || 0;
             title += `完成复习: ${count} 次`;
             if (count === 0) colorClass = 'color-scale-green-0';
@@ -1826,7 +1788,6 @@ function calculateAndRenderStats() {
             else if (count <= 6) colorClass = 'color-scale-green-3';
             else colorClass = 'color-scale-green-4';
         } else {
-            // 未来模式：使用 Workload Data (灰色)
             count = heatmapWorkloadData[key] || 0;
             title += `计划复习: ${count} 项`;
             if (count === 0) colorClass = 'color-scale-gray-0';
@@ -1836,8 +1797,6 @@ function calculateAndRenderStats() {
             else colorClass = 'color-scale-gray-4';
         }
 
-        // 今天加一个特殊边框或标识? 其实颜色分界已经很明显了
-        // 如果是今天，额外加一点 border
         let style = "";
         if (key === todayStr) {
             style = "border: 1px solid var(--blue);";
@@ -1863,8 +1822,8 @@ function calculateAndRenderStats() {
         <div class="forecast-chart">
             ${forecastCounts.map((count, i) => {
                 const dayLabel = `+${i+1}天`;
-                const maxVal = Math.max(...forecastCounts, 5); // 至少为5
-                const height = Math.max((count / maxVal) * 80, 2); // 最小2px
+                const maxVal = Math.max(...forecastCounts, 5); 
+                const height = Math.max((count / maxVal) * 80, 2); 
                 return `
                 <div class="forecast-bar-container">
                     <div class="forecast-value">${count > 0 ? count : ''}</div>
@@ -1904,7 +1863,6 @@ function calculateAndRenderStats() {
         <div class="chart-container">
     `;
 
-    // 绘制标签条形图
     const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
     sortedTags.slice(0, 10).forEach(([tag, count]) => {
         const percent = (count / maxTagCount) * 100;
@@ -1958,7 +1916,6 @@ function render(){
       const tr = tableBody.insertRow(); const td = tr.insertCell();
       td.colSpan = stageNames.length + 5;
       
-      // 增加搜索反馈 (escapeHtml 防止 XSS)
       if (currentSearchQuery) {
           td.innerHTML = `<span style="color:#666">没有找到包含 “<b style="color:var(--blue)">${escapeHtml(currentSearchQuery)}</b>” 的学习记录。</span><br><span style="font-size:12px;color:#999">请尝试清除筛选或使用其他关键词。</span>`;
       } else {
@@ -1978,7 +1935,6 @@ function render(){
     const tr=document.createElement('tr'); tr.dataset.itemId = item.id;
     tr.insertAdjacentHTML('beforeend',`<td>${index+1}</td>`);
     
-    // 修复：使用 escapeHtml
     const tdConcept=document.createElement('td'); tdConcept.textContent=item.concept;
     tdConcept.title='双击编辑学习内容'; tdConcept.style.cursor='pointer';
     tdConcept.ondblclick=(e)=>editCell(e.currentTarget, item, 'concept'); tr.appendChild(tdConcept);
@@ -1994,7 +1950,6 @@ function render(){
     tdTags.title='双击编辑标签'; tdTags.style.cursor='pointer';
     tdTags.ondblclick=(e)=>editCell(e.currentTarget, item, 'tags'); tr.appendChild(tdTags);
 
-    // 修复4：完善日期修改逻辑（提示重置进度）
     const tdInitial = document.createElement('td');
     tdInitial.textContent = fmtInit(item.initial);
     tdInitial.title = '双击修改初学时间';
@@ -2005,31 +1960,27 @@ function render(){
         input.type = 'datetime-local';
         input.value = currentVal;
         input.style.fontSize = '12px';
-        // 阻止事件冒泡，防止意外
         input.onclick = (ev) => ev.stopPropagation(); 
         
         const saveDate = () => {
             const newDate = new Date(input.value);
             if (isValidDate(newDate)) {
-                // 检查日期是否真的变了
                 if (newDate.getTime() !== item.initial.getTime()) {
                     item.initial = newDate;
                     item.schedule = computeSchedule(item.initial, item.importance);
                     
-                    // 询问是否重置打钩状态
                     if (confirm("你修改了初学日期，这可能会导致现有的复习进度不再准确。\n\n是否要【重置】这条记录的所有打钩状态？\n(推荐选'确定'以重新开始计算复习节点)")) {
                         item.reviewed = Array(intervals.length).fill(false);
-                        item.reviewLog = {}; // 重置日期也重置日志
+                        item.reviewLog = {}; 
                     }
                     
                     save();
                     render();
                 } else {
-                    // 日期没变，仅仅是失焦
                     render();
                 }
             } else {
-                render(); // 取消或无效则还原
+                render(); 
             }
         };
 
@@ -2112,8 +2063,6 @@ function render(){
             }
             
             td.onclick = () => {
-                // 取消复习时，需要删除日志吗？
-                // 逻辑：如果取消了，那这次复习就不算数了。删除相关日志。
                 group.forEach(i => { 
                     if (i < item.reviewed.length) {
                         item.reviewed[i] = false;
@@ -2170,13 +2119,11 @@ function render(){
                     
                     lastAnimatedCell = { itemId: item.id, groupIndex: groupIndex };
 
-                    // 记录当前时间作为复习时间
                     const nowISO = new Date().toISOString();
 
                     group.forEach(indexInGroup => {
                         if (indexInGroup < item.reviewed.length) {
                             item.reviewed[indexInGroup] = true;
-                            // 记录日志：哪个阶段 -> 什么时候复习的
                             if (!item.reviewLog) item.reviewLog = {};
                             item.reviewLog[indexInGroup] = nowISO;
                         }
@@ -2194,7 +2141,6 @@ function render(){
     const deleteCell=document.createElement('td');
     deleteCell.innerHTML='<span class="deleteBtn" title="删除此条记录">✕</span>';
     deleteCell.onclick=()=>{
-      // escapeHtml 防止提示框中出现奇怪代码
       if(confirm(`确定要删除学习内容：“${item.concept}”吗？此操作无法撤销。`)){
         data=data.filter(x=>x.id !== item.id);
         populateYearFilter();
@@ -2211,12 +2157,11 @@ function render(){
   }
 }
 
-// 修复：使用 escapeHtml 安全渲染标签
 function renderTags(tagsArray){
   if (!Array.isArray(tagsArray) || tagsArray.length === 0) { return '<span class="label label-gray">无标签</span>'; }
   return tagsArray.map(tag=>{
     const tagName = String(tag || '').trim(); if (!tagName) return '';
-    const safeTagName = escapeHtml(tagName); // XSS 防护
+    const safeTagName = escapeHtml(tagName); 
     const cssClassSuffix = colorSubjects[tagName] || 'gray';
     const labelClass = `label label-${cssClassSuffix}`;
     return`<span class="${labelClass}">${safeTagName}</span>`;
@@ -2249,7 +2194,6 @@ function editCell(cell, item, propertyKey) {
             item.schedule = computeSchedule(item.initial, newImportance);
             if (newImportance === '一般') {
                 item.reviewed[2] = false; 
-                // 同时移除可能存在的日志
                 if (item.reviewLog) delete item.reviewLog[2];
             }
             

@@ -1936,7 +1936,10 @@
                 startDate.setDate(endDate.getDate() - (weeksToShow * 7) + 1);
                 
                 const dateMap = {}; 
+                const wenguActiveDays = new Set(); // 【新增】温故系统专用去重Set
+
                 if (!this.isBlankMode) {
+                    // --- 步骤一：遍历主数据库记录 ---
                     data.forEach(d => { 
                         if (this.config.mode === 'counter') {
                             if (!dateMap[d.date]) dateMap[d.date] = 0;
@@ -1946,13 +1949,52 @@
                                  if (!dateMap[d.date]) dateMap[d.date] = 0;
                                  dateMap[d.date] += (d.quantity || 0);
                              } else {
-                                 if (!dateMap[d.date]) dateMap[d.date] = 0;
-                                 dateMap[d.date] += 1;
+                                 // 【修改逻辑】如果是温故系统，只存入 Set 进行去重，不直接计数
+                                 if (d.category === '温故系统') {
+                                     wenguActiveDays.add(d.date);
+                                 } else {
+                                     // 其他系统（如 Anki）正常计数
+                                     if (!dateMap[d.date]) dateMap[d.date] = 0;
+                                     dateMap[d.date] += (d.quantity || 1); 
+                                 }
                              }
                         } else {
                             dateMap[d.date] = d.value;
                         }
                     });
+
+                    // --- 步骤二：注入温故内部数据库记录并去重 ---
+                    if (this.config.mode === 'multi-tracker' && this.currentCategoryFilter === 'all') {
+                        try {
+                            const wenguStr = localStorage.getItem('scheduleData');
+                            if (wenguStr) {
+                                const wData = JSON.parse(wenguStr);
+
+                                wData.forEach(item => {
+                                    if(item.reviewLog) {
+                                        Object.values(item.reviewLog).forEach(ts => {
+                                            if(ts) {
+                                                const d = new Date(ts);
+                                                if(!isNaN(d.getTime())) {
+                                                    const dateStr = this.formatBeijingDate(d);
+                                                    // 加入 Set，自动去重（如果主数据库有记录，或者内部记录有多条，只保留一个）
+                                                    wenguActiveDays.add(dateStr);
+                                                }
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                        } catch(e) { console.error("合并温故数据失败", e); }
+                    }
+
+                    // --- 步骤三：将去重后的温故记录合并回 dateMap ---
+                    if (this.config.mode === 'multi-tracker' && this.currentCategoryFilter !== '知新系统') {
+                        wenguActiveDays.forEach(day => {
+                            if (!dateMap[day]) dateMap[day] = 0;
+                            dateMap[day] += 1; // 最终只加 1
+                        });
+                    }
                 }
 
                 for (let i = 0; i < weeksToShow * 7; i++) {
